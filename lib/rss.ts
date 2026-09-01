@@ -68,12 +68,16 @@ async function readDiskCache(): Promise<CacheState | null> {
     const raw = await readFile(/* turbopackIgnore: true */ cacheFilePath(), 'utf8');
     const parsed = JSON.parse(raw) as CacheState;
     if (!parsed || !Array.isArray(parsed.items) || typeof parsed.time !== 'number') return null;
-    parsed.items = parsed.items.map((item) =>
-      applyTranslation({
+    parsed.items = parsed.items.map((item) => {
+      const snippet = item.snippet ? finalizeSnippet(item.snippet, item.title) : undefined;
+      const next = {
         ...item,
         category: normalizeCategory(item.category),
-      })
-    );
+      };
+      if (snippet) next.snippet = snippet;
+      else delete next.snippet;
+      return applyTranslation(next);
+    });
     return parsed;
   } catch {
     return null;
@@ -234,13 +238,30 @@ function toSnippet(item: ParsedItem, title: string): string | undefined {
     (value) => typeof value === 'string' && value.trim()
   );
   if (!raw) return undefined;
-  let text = stripHtml(raw);
-  if (!text) return undefined;
-  if (text.startsWith(title)) {
-    text = text.slice(title.length).trim().replace(/^[\s\-—–:：|]+/, '');
+  return finalizeSnippet(raw, title);
+}
+
+export function finalizeSnippet(text: string, title: string): string | undefined {
+  let next = stripHtml(text);
+  if (!next) return undefined;
+  const normalizedTitle = title.replace(/\s+/g, ' ').trim();
+  if (normalizedTitle && next.startsWith(normalizedTitle)) {
+    next = next.slice(normalizedTitle.length);
   }
-  if (!text || text === title) return undefined;
-  return clipSnippet(text, 140);
+  next = next.trim().replace(/^[\s\-—–:：|·,，、。;；"'“”‘’]+/, '');
+  if (!next || next.length < 4 || similarText(next, title)) return undefined;
+  return clipSnippet(next, 140);
+}
+
+function similarText(a: string, b: string): boolean {
+  const left = a.toLowerCase().replace(/\s+/g, '');
+  const right = b.toLowerCase().replace(/\s+/g, '');
+  if (!left || !right) return true;
+  if (left === right) return true;
+  if (left.startsWith(right) || right.startsWith(left)) {
+    return Math.abs(left.length - right.length) < 16;
+  }
+  return false;
 }
 
 function stripHtml(html: string): string {
@@ -402,7 +423,13 @@ async function refreshAll(): Promise<CacheState> {
 }
 
 function stampTranslations(state: CacheState): CacheState {
-  const items = state.items.map((item) => applyTranslation(item));
+  const items = state.items.map((item) => {
+    const snippet = item.snippet ? finalizeSnippet(item.snippet, item.title) : undefined;
+    const next = { ...item };
+    if (snippet) next.snippet = snippet;
+    else delete next.snippet;
+    return applyTranslation(next);
+  });
   startBackgroundTranslation(items.map((item) => item.title));
   return { ...state, items };
 }
