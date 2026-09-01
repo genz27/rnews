@@ -1,4 +1,5 @@
 import { HomeView } from '@/components/HomeView';
+import { getCatalogCategories } from '@/lib/catalog';
 import { ensureBackgroundRefresh, fetchAllFeeds, filterItems, pickRandomItems } from '@/lib/rss';
 import { hydrateTranslations } from '@/lib/translate';
 
@@ -7,18 +8,33 @@ export const maxDuration = 60;
 
 const PAGE_SIZE = 40;
 
-export default async function Page() {
+type PageProps = {
+  searchParams: Promise<{ c?: string; q?: string }>;
+};
+
+export default async function Page({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const categories = getCatalogCategories();
+  const category = categories.includes(params.c || '') ? (params.c as string) : '推荐';
+  const query = (params.q || '').trim();
+
   ensureBackgroundRefresh();
   const snapshot = await fetchAllFeeds();
-  const recommended = filterItems(snapshot.items, '推荐');
-  const firstPage = pickRandomItems(recommended, PAGE_SIZE, Date.now());
+  const pool = filterItems(snapshot.items, category, query);
+  const firstPage =
+    category === '推荐' && !query
+      ? pickRandomItems(pool, PAGE_SIZE, Date.now())
+      : pool.slice(0, PAGE_SIZE);
   const translated = await hydrateTranslations(firstPage, { immediate: PAGE_SIZE });
+  const hasMore = category === '推荐' && !query ? pool.length > 0 : pool.length > PAGE_SIZE;
 
   return (
     <HomeView
       initialItems={translated}
-      initialTotal={recommended.length}
-      initialHasMore={recommended.length > 0}
+      initialTotal={pool.length}
+      initialHasMore={hasMore}
+      initialCategory={category}
+      initialQuery={query}
       initialStats={{
         sources: snapshot.sources,
         ok: snapshot.ok,

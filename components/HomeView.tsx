@@ -1,17 +1,23 @@
 'use client';
 
+import { BackToTop } from '@/components/BackToTop';
 import { CategoryChips } from '@/components/CategoryChips';
 import { SearchBar } from '@/components/SearchBar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Feed } from '@/components/Feed';
+import { Toast } from '@/components/Toast';
 import { getCatalogCategories } from '@/lib/catalog';
 import { FeedItem, FeedResponse } from '@/lib/types';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+const CATEGORY_KEY = 'rss-news-category';
 
 interface HomeViewProps {
   initialItems: FeedItem[];
   initialTotal: number;
   initialHasMore: boolean;
+  initialCategory?: string;
+  initialQuery?: string;
   initialStats?: FeedResponse['stats'];
   initialCachedAt?: number;
 }
@@ -20,14 +26,19 @@ export function HomeView({
   initialItems,
   initialTotal,
   initialHasMore,
+  initialCategory = '推荐',
+  initialQuery = '',
   initialStats,
   initialCachedAt,
 }: HomeViewProps) {
   const [categories, setCategories] = useState<string[]>(getCatalogCategories());
-  const [selectedCategory, setSelectedCategory] = useState('推荐');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [refreshKey, setRefreshKey] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [help, setHelp] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch('/api/categories')
@@ -40,6 +51,25 @@ export function HomeView({
       .catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    if (initialCategory !== '推荐') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('c') || params.get('q')) return;
+    const saved = window.localStorage.getItem(CATEGORY_KEY);
+    if (saved && saved !== selectedCategory) setSelectedCategory(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const writeUrl = useCallback((category: string, query: string, push: boolean) => {
+    const params = new URLSearchParams();
+    if (category && category !== '推荐') params.set('c', category);
+    if (query) params.set('q', query);
+    const next = params.toString() ? `/?${params.toString()}` : '/';
+    const state = { c: category, q: query };
+    if (push) window.history.pushState(state, '', next);
+    else window.history.replaceState(state, '', next);
+  }, []);
+
   const handleBusy = useCallback((next: boolean) => {
     setBusy(next);
   }, []);
@@ -48,13 +78,146 @@ export function HomeView({
     setRefreshKey((value) => value + 1);
   }, []);
 
-  const handleSelectCategory = useCallback((category: string) => {
-    setSelectedCategory(category);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const handleSearch = useCallback(
+    (query: string) => {
+      setSearchQuery(query);
+      writeUrl(selectedCategory, query, false);
+    },
+    [selectedCategory, writeUrl]
+  );
+
+  const handleSelectCategory = useCallback(
+    (category: string, push = true) => {
+      setSelectedCategory(category);
+      setSearchQuery('');
+      window.localStorage.setItem(CATEGORY_KEY, category);
+      writeUrl(category, '', push);
+    },
+    [writeUrl]
+  );
+
+  const handleSource = useCallback(
+    (source: string) => {
+      setSearchQuery(source);
+      writeUrl(selectedCategory, source, false);
+      searchRef.current?.focus();
+    },
+    [selectedCategory, writeUrl]
+  );
+
+  const handleRefreshed = useCallback(() => {
+    setToast(selectedCategory === '推荐' && !searchQuery ? '已换一批' : '已更新');
+  }, [searchQuery, selectedCategory]);
+
+  const clearToast = useCallback(() => setToast(null), []);
+
+  useEffect(() => {
+    const onPop = () => {
+      const params = new URLSearchParams(window.location.search);
+      const nextCategory = params.get('c') || '推荐';
+      const nextQuery = params.get('q') || '';
+      setSelectedCategory(nextCategory);
+      setSearchQuery(nextQuery);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
   }, []);
+
+  useEffect(() => {
+    const isTyping = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      const tag = target.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable;
+    };
+
+    const move = (delta: number) => {
+      const rows = Array.from(document.querySelectorAll<HTMLAnchorElement>('a.feed-title'));
+      if (rows.length === 0) return;
+      const index = rows.findIndex((row) => row === document.activeElement);
+      const next = rows[index < 0 ? (delta > 0 ? 0 : rows.length - 1) : index + delta];
+      if (!next) return;
+      next.focus();
+      next.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    };
+
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+      if (event.key === '/' && !isTyping(event.target)) {
+        event.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+        return;
+      }
+
+      if (event.key === '?' && !isTyping(event.target)) {
+        event.preventDefault();
+        setHelp((open) => !open);
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        if (help) {
+          setHelp(false);
+          return;
+        }
+        if (searchQuery || searchRef.current?.value) {
+          handleSearch('');
+          searchRef.current?.blur();
+          return;
+        }
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        return;
+      }
+
+      if (isTyping(event.target)) return;
+
+      if (event.key === 'r' || event.key === 'R') {
+        event.preventDefault();
+        handleRefresh();
+        return;
+      }
+      if (event.key === 'j' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        move(1);
+        return;
+      }
+      if (event.key === 'k' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        move(-1);
+        return;
+      }
+      if (event.key === ']' || event.key === '[') {
+        event.preventDefault();
+        const current = Math.max(0, categories.indexOf(selectedCategory));
+        const next = event.key === ']' ? Math.min(categories.length - 1, current + 1) : Math.max(0, current - 1);
+        if (categories[next]) handleSelectCategory(categories[next]);
+        return;
+      }
+      if (event.key === 't' || event.key === 'Home') {
+        event.preventDefault();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [categories, handleRefresh, handleSearch, handleSelectCategory, help, searchQuery, selectedCategory]);
 
   return (
     <div className="min-h-svh">
+      <a
+        href="#feed"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded focus:bg-zinc-900 focus:px-3 focus:py-1.5 focus:text-sm focus:text-white dark:focus:bg-zinc-100 dark:focus:text-zinc-900"
+      >
+        跳到内容
+      </a>
       <header className="sticky top-0 z-20 border-b border-zinc-200/80 bg-zinc-50/80 backdrop-blur-xl dark:border-white/[0.06] dark:bg-zinc-950/80">
         {busy ? (
           <div className="progress-bar text-zinc-900 dark:text-zinc-100">
@@ -73,12 +236,18 @@ export function HomeView({
             </div>
             <div className="flex min-w-0 items-center gap-5 lg:w-[28rem]">
               <div className="min-w-0 flex-1 border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200">
-                <SearchBar onSearch={setSearchQuery} placeholder="搜索标题或来源" />
+                <SearchBar
+                  value={searchQuery}
+                  onSearch={handleSearch}
+                  placeholder="搜索标题或来源"
+                  inputRef={searchRef}
+                />
               </div>
               <button
                 type="button"
                 onClick={handleRefresh}
                 disabled={busy}
+                title="刷新（R）"
                 className="inline-flex shrink-0 items-center gap-1.5 text-sm text-zinc-500 transition hover:text-zinc-800 disabled:opacity-60 dark:hover:text-zinc-200"
               >
                 <RefreshIcon spinning={busy} />
@@ -108,9 +277,14 @@ export function HomeView({
               selected={selectedCategory}
               onSelect={handleSelectCategory}
             />
+            <p className="mt-8 px-3 text-[11px] leading-5 text-zinc-400">
+              R 刷新 · / 搜索 · J K 浏览
+              <br />
+              [ ] 分类 · ? 快捷键
+            </p>
           </div>
         </aside>
-        <main className="min-w-0">
+        <main id="feed" className="min-w-0">
           <Feed
             category={selectedCategory}
             searchQuery={searchQuery}
@@ -121,10 +295,48 @@ export function HomeView({
             initialStats={initialStats}
             initialCachedAt={initialCachedAt}
             onBusyChange={handleBusy}
+            onRefreshed={handleRefreshed}
+            onSource={handleSource}
+            onCategory={(category) => handleSelectCategory(category)}
           />
         </main>
       </div>
+
+      <BackToTop />
+      <Toast message={toast} onDone={clearToast} />
+
+      {help ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/30 p-4 backdrop-blur-[2px] sm:items-center"
+          onClick={() => setHelp(false)}
+        >
+          <div
+            role="dialog"
+            aria-label="快捷键"
+            className="w-full max-w-sm rounded-xl border border-zinc-200 bg-zinc-50 p-5 text-sm text-zinc-600 shadow-lg dark:border-white/[0.08] dark:bg-zinc-900 dark:text-zinc-300"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="mb-3 text-zinc-900 dark:text-zinc-50">快捷键</p>
+            <ul className="space-y-2">
+              <li><Kbd>/</Kbd> 或 <Kbd>⌘K</Kbd> 搜索</li>
+              <li><Kbd>R</Kbd> 刷新 / 换一批</li>
+              <li><Kbd>J</Kbd> <Kbd>K</Kbd> 上下移动，回车打开</li>
+              <li><Kbd>[</Kbd> <Kbd>]</Kbd> 切换分类</li>
+              <li><Kbd>T</Kbd> 回到顶部 · <Kbd>Esc</Kbd> 关闭</li>
+            </ul>
+            <p className="mt-4 text-xs text-zinc-400">点标题打开原文，点来源或分类即可筛选。</p>
+          </div>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function Kbd({ children }: { children: string }) {
+  return (
+    <kbd className="rounded border border-zinc-200 px-1.5 py-0.5 text-[11px] text-zinc-500 dark:border-white/[0.1] dark:text-zinc-400">
+      {children}
+    </kbd>
   );
 }
 

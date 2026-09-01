@@ -15,6 +15,9 @@ interface FeedProps {
   initialStats?: FeedResponse['stats'];
   initialCachedAt?: number;
   onBusyChange?: (busy: boolean) => void;
+  onRefreshed?: () => void;
+  onSource?: (source: string) => void;
+  onCategory?: (category: string) => void;
 }
 
 const EXCLUDE_WINDOW = 80;
@@ -29,10 +32,17 @@ export function Feed({
   initialStats,
   initialCachedAt,
   onBusyChange,
+  onRefreshed,
+  onSource,
+  onCategory,
 }: FeedProps) {
   const recommend = category === '推荐' && !searchQuery;
+  const bootRef = useRef({ category, searchQuery });
   const hasInitial =
-    initialItems.length > 0 && category === '推荐' && !searchQuery && refreshKey === 0;
+    initialItems.length > 0 &&
+    refreshKey === 0 &&
+    category === bootRef.current.category &&
+    searchQuery === bootRef.current.searchQuery;
   const [items, setItems] = useState<FeedItem[]>(hasInitial ? initialItems : []);
   const [hasMore, setHasMore] = useState(hasInitial ? initialHasMore : true);
   const [loading, setLoading] = useState(!hasInitial);
@@ -47,6 +57,11 @@ export function Feed({
   const skipNextReset = useRef(hasInitial);
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  const prevSearchRef = useRef(searchQuery);
+  const prevCategoryRef = useRef(category);
+  const prevRefreshRef = useRef(refreshKey);
+  const onRefreshedRef = useRef(onRefreshed);
+  onRefreshedRef.current = onRefreshed;
   const { ref, inView } = useInView({ rootMargin: '800px' });
 
   const loadPage = useCallback(
@@ -54,11 +69,21 @@ export function Feed({
       const requestId = reset ? requestIdRef.current + 1 : requestIdRef.current;
       requestIdRef.current = requestId;
 
+      const searchChanged = prevSearchRef.current !== searchQuery;
+      const refreshChanged = prevRefreshRef.current !== refreshKey;
+      const shouldScroll =
+        reset &&
+        (prevCategoryRef.current !== category || refreshChanged) &&
+        !searchChanged;
+      prevSearchRef.current = searchQuery;
+      prevCategoryRef.current = category;
+      prevRefreshRef.current = refreshKey;
+
       if (reset) {
         setLoading(true);
         setError(null);
         cursorRef.current = 0;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (shouldScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         setLoadingMore(true);
       }
@@ -92,6 +117,7 @@ export function Feed({
         if (reset) {
           setEnterFrom(0);
           setItems(nextItems);
+          if (refreshChanged) onRefreshedRef.current?.();
         } else {
           const from = itemsRef.current.length;
           setEnterFrom(from);
@@ -171,7 +197,11 @@ export function Feed({
   if (!loading && items.length === 0) {
     return (
       <p className="animate-in py-16 text-center text-sm text-zinc-500">
-        {recommend ? '今天还没有新内容，稍后再刷一次。' : '这个分类暂时没有内容。'}
+        {searchQuery
+          ? `没有找到「${searchQuery}」，试试别的关键词，或点来源名称筛选。`
+          : recommend
+            ? '今天还没有新内容，稍后再刷一次。'
+            : '这个分类暂时没有内容。'}
       </p>
     );
   }
@@ -179,7 +209,11 @@ export function Feed({
   return (
     <div>
       <p className="mb-3 text-[13px] text-zinc-500 transition-opacity duration-300">
-        {recommend ? `今日 ${total} 条 · 下滑或点刷新换一批` : `${items.length}/${total}`}
+        {searchQuery
+          ? `找到 ${total} 条 · 「${searchQuery}」`
+          : recommend
+            ? `今日 ${total} 条 · 下滑或点刷新换一批`
+            : `${items.length}/${total}`}
         {stats?.ok ? ` · ${stats.ok}/${stats.sources} 源` : ''}
         {cacheLabel ? ` · ${cacheLabel}` : ''}
       </p>
@@ -190,6 +224,9 @@ export function Feed({
             item={item}
             enter={index >= enterFrom}
             delay={Math.min(Math.max(index - enterFrom, 0), 12) * 32}
+            query={searchQuery}
+            onSource={onSource}
+            onCategory={onCategory}
           />
         ))}
       </div>

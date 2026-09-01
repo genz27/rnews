@@ -32,6 +32,7 @@ export function CategoryChips({
                 ? 'text-zinc-900 dark:text-zinc-50'
                 : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-500 dark:hover:text-zinc-200'
             }`}
+            aria-current={selected === category ? 'page' : undefined}
           >
             {category}
           </button>
@@ -47,10 +48,11 @@ export function CategoryChips({
           key={category}
           onClick={() => onSelect(category)}
           className={`relative shrink-0 pb-1 text-sm transition-colors duration-200 ${
-            selected === category
-              ? 'text-zinc-900 dark:text-zinc-50'
-              : 'text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200'
-          }`}
+              selected === category
+                ? 'text-zinc-900 dark:text-zinc-50'
+                : 'text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200'
+            }`}
+          aria-current={selected === category ? 'page' : undefined}
         >
           {category}
           <span

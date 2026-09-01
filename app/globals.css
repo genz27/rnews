@@ -157,8 +157,35 @@ body {
   animation-delay: 0.12s;
 }
 
-.loading-dots span:nth-child(3) {
-  animation-delay: 0.24s;
+.feed-title:visited {
+  color: #71717a;
+}
+
+.dark .feed-title:visited {
+  color: #a1a1aa;
+}
+
+.feed-row:focus-within {
+  background: color-mix(in srgb, var(--foreground) 3%, transparent);
+}
+
+mark {
+  background: color-mix(in srgb, var(--foreground) 14%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 0.12em;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
