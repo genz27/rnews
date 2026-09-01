@@ -5,6 +5,7 @@ import { CATEGORY_COOKIE, readCategoryCookie } from '@/lib/category-pref';
 import { getCatalogCategories } from '@/lib/catalog';
 import { buildInitialPages, buildPage, pageKey } from '@/lib/feed-page';
 import { ensureBackgroundRefresh, fetchAllFeeds, scheduleFeedRefresh, scheduleMissingTranslations } from '@/lib/rss';
+import { translateSlice } from '@/lib/translate';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -29,7 +30,13 @@ export default async function Page({ searchParams }: PageProps) {
     await scheduleMissingTranslations();
   });
 
-  const initialPages = buildInitialPages(snapshot.items, snapshot.time || Date.now());
+  const seed = snapshot.time || Date.now();
+  await translateSlice(
+    snapshot.items.slice(0, 80).map((item) => item.title).concat(
+      snapshot.items.filter((item) => item.category === category).slice(0, 40).map((item) => item.title)
+    )
+  );
+  const initialPages = buildInitialPages(snapshot.items, seed);
   if (query) {
     initialPages[pageKey(category, query)] = buildPage(snapshot.items, category, query);
   }

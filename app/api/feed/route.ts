@@ -2,7 +2,7 @@ import { after } from 'next/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { PAGE_SIZE } from '@/lib/feed-page';
 import { fetchAllFeeds, filterItems, pickRandomItems, scheduleFeedRefresh, scheduleMissingTranslations } from '@/lib/rss';
-import { applyTranslation } from '@/lib/translate';
+import { applyTranslation, translateSlice } from '@/lib/translate';
 import { FeedResponse } from '@/lib/types';
 import { attachRateLimitHeaders, rateLimit } from '@/lib/rate-limit';
 
@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     const page = recommend
       ? pickRandomItems(pool, PAGE_SIZE, seed, exclude)
       : pool.slice(cursor, cursor + PAGE_SIZE);
+    await translateSlice(page.map((item) => item.title));
     const paginatedItems = page.map((item) => applyTranslation(item));
     const hasMore = recommend ? pool.length > 0 : cursor + PAGE_SIZE < pool.length;
 

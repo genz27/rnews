@@ -165,6 +165,18 @@ export function lookupTranslation(title: string): string | undefined {
   return map[title] || map[title.trim()];
 }
 
+export async function translateSlice(titles: string[], timeoutMs = 2200) {
+  await loadMap();
+  const pending = Array.from(
+    new Set(titles.map((title) => title.trim()).filter((title) => isEnglishTitle(title) && !map[title]))
+  );
+  if (pending.length === 0) return;
+  await Promise.race([
+    translateTitles(pending),
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
+}
+
 export function applyTranslation<T extends { title: string; titleZh?: string }>(item: T): T {
   if (item.titleZh && item.titleZh !== item.title) return item;
   const translated = lookupTranslation(item.title);
