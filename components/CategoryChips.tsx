@@ -15,8 +15,6 @@ export function CategoryChips({
   onPrefetch,
   layout = 'row',
 }: CategoryChipsProps) {
-  const activeIndex = Math.max(0, categories.indexOf(selected));
-
   const activate = (category: string) => {
     onPrefetch?.(category);
     onSelect(category);
@@ -24,25 +22,23 @@ export function CategoryChips({
 
   if (layout === 'stack') {
     return (
-      <nav className="relative flex flex-col gap-1">
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 h-9 rounded-md bg-zinc-100 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] dark:bg-white/[0.06]"
-          style={{ transform: `translateY(${activeIndex * 40}px)` }}
-        />
+      <nav className="flex flex-col gap-1">
         {categories.map((category) => (
           <button
             key={category}
             type="button"
             onPointerDown={(event) => {
               if (event.button !== 0) return;
+              event.preventDefault();
               activate(category);
             }}
             onPointerEnter={() => onPrefetch?.(category)}
-            onClick={() => activate(category)}
-            className={`relative z-10 h-9 cursor-pointer rounded-md px-3 text-left text-sm transition-colors duration-150 ${
+            onClick={(event) => {
+              if (event.detail === 0) activate(category);
+            }}
+            className={`h-9 cursor-pointer rounded-md px-3 text-left text-sm transition-colors duration-150 ${
               selected === category
-                ? 'text-zinc-900 dark:text-zinc-50'
+                ? 'bg-zinc-100 text-zinc-900 dark:bg-white/[0.06] dark:text-zinc-50'
                 : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-500 dark:hover:text-zinc-200'
             }`}
             aria-current={selected === category ? 'page' : undefined}
@@ -62,10 +58,13 @@ export function CategoryChips({
           type="button"
           onPointerDown={(event) => {
             if (event.button !== 0) return;
+            event.preventDefault();
             activate(category);
           }}
           onPointerEnter={() => onPrefetch?.(category)}
-          onClick={() => activate(category)}
+          onClick={(event) => {
+            if (event.detail === 0) activate(category);
+          }}
           className={`relative shrink-0 cursor-pointer pb-1 text-sm transition-colors duration-150 ${
             selected === category
               ? 'text-zinc-900 dark:text-zinc-50'

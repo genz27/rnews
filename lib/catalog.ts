@@ -1,4 +1,5 @@
 import { FeedSource } from './types';
+import { TOP_RSS_SOURCES } from './top-rss-sources';
 
 export const CATEGORY_ORDER = ['社区', 'AI', '资讯', '工程', '主机'] as const;
 
@@ -178,7 +179,7 @@ export function getCatalogCategories(): string[] {
 
 export function mergeSources(extra: FeedSource[]): FeedSource[] {
   const byUrl = new Map<string, FeedSource>();
-  for (const source of FEED_CATALOG) {
+  for (const source of [...FEED_CATALOG, ...TOP_RSS_SOURCES]) {
     byUrl.set(normalizeFeedUrl(source.url), {
       ...source,
       category: normalizeCategory(source.category),

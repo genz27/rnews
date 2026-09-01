@@ -6,7 +6,7 @@ import { compactFeedPages, expandFeedBootstrap } from '@/lib/feed-bootstrap';
 import { pageKey } from '@/lib/feed-key';
 import type { FeedBootstrap, FeedItem, FeedResponse, InitialFeedPage } from '@/lib/types';
 import { FeedRow, FeedRowSkeleton } from './FeedCard';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface FeedProps {
   category: string;
@@ -82,8 +82,6 @@ export function Feed({
   const inflightRef = useRef(new Set<string>());
   const requestIdRef = useRef(0);
   const prevRefreshRef = useRef(refreshKey);
-  const scrollMapRef = useRef<Record<string, number>>({});
-  const paintedKeyRef = useRef(bootKey);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const onRefreshedRef = useRef(onRefreshed);
   const onCachedAtRef = useRef(onCachedAt);
@@ -228,18 +226,6 @@ export function Feed({
     }, 600);
     return () => window.clearTimeout(timer);
   }, [pages]);
-
-  useLayoutEffect(() => {
-    const previous = paintedKeyRef.current;
-    if (previous === activeKey) return;
-    scrollMapRef.current[previous] = window.scrollY;
-    paintedKeyRef.current = activeKey;
-    window.scrollTo({
-      top: scrollMapRef.current[activeKey] ?? 0,
-      left: 0,
-      behavior: 'instant',
-    });
-  }, [activeKey]);
 
   useEffect(() => {
     const refreshChanged = prevRefreshRef.current !== refreshKey;
