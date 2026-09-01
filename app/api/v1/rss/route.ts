@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { CORS_HEADERS, corsOptions, parseLimit, siteOrigin, toRssXml } from '@/lib/public-api';
+import {
+  CORS_HEADERS,
+  corsOptions,
+  filterSince,
+  parseLimit,
+  parseSince,
+  siteOrigin,
+  toRssXml,
+} from '@/lib/public-api';
 import { attachRateLimitHeaders, rateLimit } from '@/lib/rate-limit';
 import { fetchAllFeeds, filterItems } from '@/lib/rss';
 import { hydrateTranslations } from '@/lib/translate';
@@ -24,11 +32,21 @@ export async function GET(request: NextRequest) {
     const category = request.nextUrl.searchParams.get('category') || '全部';
     const query = request.nextUrl.searchParams.get('q') || '';
     const limit = parseLimit(request.nextUrl.searchParams.get('limit'), 50, 100);
+    const since = parseSince(request.nextUrl.searchParams.get('since'));
+    if (!since.ok) {
+      return NextResponse.json(
+        { ok: false, error: 'since 不是有效时间' },
+        { status: 400, headers: CORS_HEADERS }
+      );
+    }
     const origin = siteOrigin(request);
 
     const snapshot = await fetchAllFeeds();
-    const pool = filterItems(snapshot.items, category, query).sort(
-      (a, b) => Date.parse(b.pubDate) - Date.parse(a.pubDate)
+    const pool = filterSince(
+      filterItems(snapshot.items, category, query).sort(
+        (a, b) => Date.parse(b.pubDate) - Date.parse(a.pubDate)
+      ),
+      since.ms
     );
     const items = await hydrateTranslations(pool.slice(0, limit), { immediate: limit });
     const label = category && category !== '全部' ? `Rnews · ${category}` : 'Rnews';

@@ -33,6 +33,40 @@ export function parseCursor(raw: string | null) {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
+export function parseSince(raw: string | null): { ok: true; ms: number | null } | { ok: false } {
+  if (!raw || !raw.trim()) return { ok: true, ms: null };
+  const value = raw.trim();
+  if (/^\d+$/.test(value)) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return { ok: false };
+    return { ok: true, ms: n < 1e12 ? n * 1000 : n };
+  }
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) return { ok: false };
+  return { ok: true, ms: parsed };
+}
+
+export function filterSince(items: FeedItem[], sinceMs: number | null): FeedItem[] {
+  if (sinceMs == null) return items;
+  return items.filter((item) => {
+    const time = Date.parse(item.pubDate);
+    return Number.isFinite(time) && time > sinceMs;
+  });
+}
+
+export function newestPubDate(items: FeedItem[]): string | null {
+  let newest = 0;
+  let iso: string | null = null;
+  for (const item of items) {
+    const time = Date.parse(item.pubDate);
+    if (Number.isFinite(time) && time > newest) {
+      newest = time;
+      iso = new Date(time).toISOString();
+    }
+  }
+  return iso;
+}
+
 export function siteOrigin(request: NextRequest) {
   return process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin;
 }
@@ -51,13 +85,14 @@ export function toRssXml(items: FeedItem[], options: { title: string; link: stri
     .map((item) => {
       const title = xmlEscape(item.titleZh || item.title);
       const date = Number.isNaN(Date.parse(item.pubDate)) ? new Date().toUTCString() : new Date(item.pubDate).toUTCString();
+      const snippet = item.snippet ? `\n      <description>${xmlEscape(item.snippet)}</description>` : '';
       return `    <item>
       <title>${title}</title>
       <link>${xmlEscape(item.link)}</link>
       <guid isPermaLink="false">${xmlEscape(item.id)}</guid>
       <pubDate>${date}</pubDate>
       <category>${xmlEscape(item.category)}</category>
-      <source>${xmlEscape(item.source)}</source>
+      <source>${xmlEscape(item.source)}</source>${snippet}
     </item>`;
     })
     .join('\n');

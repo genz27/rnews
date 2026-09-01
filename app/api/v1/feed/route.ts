@@ -1,5 +1,13 @@
 import { NextRequest } from 'next/server';
-import { corsOptions, jsonApi, parseCursor, parseLimit } from '@/lib/public-api';
+import {
+  corsOptions,
+  filterSince,
+  jsonApi,
+  newestPubDate,
+  parseCursor,
+  parseLimit,
+  parseSince,
+} from '@/lib/public-api';
 import { rateLimit, attachRateLimitHeaders } from '@/lib/rate-limit';
 import { fetchAllFeeds, filterItems } from '@/lib/rss';
 import { hydrateTranslations } from '@/lib/translate';
@@ -26,14 +34,22 @@ export async function GET(request: NextRequest) {
     const query = search.get('q') || '';
     const cursor = parseCursor(search.get('cursor'));
     const limit = parseLimit(search.get('limit'));
+    const since = parseSince(search.get('since'));
+    if (!since.ok) {
+      return jsonApi({ ok: false, error: 'since 不是有效时间' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
+    }
 
     const snapshot = await fetchAllFeeds();
-    const pool = filterItems(snapshot.items, category, query).sort(
-      (a, b) => Date.parse(b.pubDate) - Date.parse(a.pubDate)
+    const pool = filterSince(
+      filterItems(snapshot.items, category, query).sort(
+        (a, b) => Date.parse(b.pubDate) - Date.parse(a.pubDate)
+      ),
+      since.ms
     );
     const page = pool.slice(cursor, cursor + limit);
     const items = await hydrateTranslations(page, { immediate: limit });
     const hasMore = cursor + limit < pool.length;
+    const sinceIso = since.ms != null ? new Date(since.ms).toISOString() : null;
 
     const response = jsonApi({
       ok: true,
@@ -45,6 +61,8 @@ export async function GET(request: NextRequest) {
       hasMore,
       category,
       query: query || null,
+      since: sinceIso,
+      newestPubDate: newestPubDate(items) || newestPubDate(pool),
       cachedAt: snapshot.time,
     });
     return attachRateLimitHeaders(response, request, { limit: LIMIT, name: 'v1' });

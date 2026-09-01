@@ -83,7 +83,7 @@ npx vercel --prod
 
 文档页：`/docs`
 
-- `GET /api/v1/feed` JSON 聚合
-- `GET /api/v1/rss` RSS 2.0
+- `GET /api/v1/feed` JSON 聚合，可用 `since` 增量拉取
+- `GET /api/v1/rss` RSS 2.0，条目带一句摘要
 - `GET /api/v1/categories` 分类
 - 公开接口每个 IP 每分钟 60 次；超限返回 429

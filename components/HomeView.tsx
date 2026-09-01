@@ -9,6 +9,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Feed } from '@/components/Feed';
 import { Toast } from '@/components/Toast';
 import { getCatalogCategories } from '@/lib/catalog';
+import { formatUpdatedAt } from '@/lib/time';
 import { FeedItem, FeedResponse } from '@/lib/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -40,7 +41,14 @@ export function HomeView({
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [help, setHelp] = useState(false);
+  const [cachedAt, setCachedAt] = useState(initialCachedAt);
+  const [now, setNow] = useState(() => Date.now());
   const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 30000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     fetch('/api/categories')
@@ -233,7 +241,13 @@ export function HomeView({
                 <a href="/">Rnews</a>
               </h1>
               <p className="mt-1 text-sm leading-6 text-zinc-500">
-                聚合技术社区、AI、科技媒体与主机资讯。
+                聚合技术社区、AI、科技媒体与主机资讯
+                {cachedAt ? (
+                  <>
+                    <span className="text-zinc-300 dark:text-zinc-700"> · </span>
+                    {formatUpdatedAt(cachedAt, now)}
+                  </>
+                ) : null}
               </p>
             </div>
             <div className="flex min-w-0 items-center gap-5 lg:w-[28rem]">
@@ -292,9 +306,9 @@ export function HomeView({
             initialTotal={initialTotal}
             initialHasMore={initialHasMore}
             initialStats={initialStats}
-            initialCachedAt={initialCachedAt}
             onBusyChange={handleBusy}
             onRefreshed={handleRefreshed}
+            onCachedAt={setCachedAt}
             onSource={handleSource}
             onCategory={(category) => handleSelectCategory(category)}
           />

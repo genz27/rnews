@@ -58,24 +58,27 @@ export function DocsView() {
           <p className="mt-2">参数：</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li><code>category</code> 分类，默认 <code>全部</code>。<code>推荐</code> 为今日内容。</li>
-            <li><code>q</code> 按标题或来源搜索</li>
+            <li><code>q</code> 按标题、摘要或来源搜索</li>
             <li><code>limit</code> 每页条数，默认 40，最大 100</li>
             <li><code>cursor</code> 偏移，从 0 开始</li>
+            <li><code>since</code> 只返回这个时间之后的条目，ISO 8601 或 Unix 时间戳。适合增量拉取，比较的是 <code>pubDate</code>，不含等于该时刻的条目。</li>
           </ul>
-          <p className="mt-2">按发布时间倒序。英文标题会附带 <code>titleZh</code>。</p>
+          <p className="mt-2">按发布时间倒序。英文标题会附带 <code>titleZh</code>。响应里的 <code>newestPubDate</code> 可以当作下一次请求的 <code>since</code>。</p>
           <Code>{`curl -s "https://news.airgzn.top/api/v1/feed?category=社区&limit=5"`}</Code>
+          <Code>{`curl -s "https://news.airgzn.top/api/v1/feed?since=2026-09-01T00:00:00.000Z&limit=20"`}</Code>
 
           <h2 className="mt-10 text-base font-medium text-zinc-900 dark:text-zinc-50">RSS 输出</h2>
           <p className="mt-2">同一份聚合可以当普通 RSS 源订阅：</p>
-          <Code>{`GET /api/v1/rss?category=资讯&limit=50`}</Code>
+          <Code>{`GET /api/v1/rss?category=资讯&limit=50&since=2026-09-01T00:00:00.000Z`}</Code>
           <Code>{`https://news.airgzn.top/api/v1/rss?category=全部`}</Code>
-          <p className="mt-2">响应类型为 <code>application/rss+xml</code>，可直接丢进 RSS 阅读器。</p>
+          <p className="mt-2">响应类型为 <code>application/rss+xml</code>，条目带一句 <code>description</code> 摘要，可直接丢进 RSS 阅读器。</p>
 
           <h2 className="mt-10 text-base font-medium text-zinc-900 dark:text-zinc-50">条目字段</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li><code>id</code> 稳定标识</li>
             <li><code>title</code> 原文标题</li>
             <li><code>titleZh</code> 中文标题（若已翻译）</li>
+            <li><code>snippet</code> 一句摘要（有则返回）</li>
             <li><code>link</code> 原文链接</li>
             <li><code>pubDate</code> ISO 时间</li>
             <li><code>source</code> 来源名称</li>

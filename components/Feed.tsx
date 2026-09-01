@@ -13,9 +13,9 @@ interface FeedProps {
   initialTotal?: number;
   initialHasMore?: boolean;
   initialStats?: FeedResponse['stats'];
-  initialCachedAt?: number;
   onBusyChange?: (busy: boolean) => void;
   onRefreshed?: () => void;
+  onCachedAt?: (cachedAt?: number) => void;
   onSource?: (source: string) => void;
   onCategory?: (category: string) => void;
 }
@@ -30,9 +30,9 @@ export function Feed({
   initialTotal = 0,
   initialHasMore = false,
   initialStats,
-  initialCachedAt,
   onBusyChange,
   onRefreshed,
+  onCachedAt,
   onSource,
   onCategory,
 }: FeedProps) {
@@ -50,7 +50,6 @@ export function Feed({
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(hasInitial ? initialTotal : 0);
   const [stats, setStats] = useState<FeedResponse['stats']>(initialStats);
-  const [cachedAt, setCachedAt] = useState(initialCachedAt);
   const [enterFrom, setEnterFrom] = useState(0);
   const cursorRef = useRef(hasInitial ? initialItems.length : 0);
   const requestIdRef = useRef(0);
@@ -62,6 +61,8 @@ export function Feed({
   const prevRefreshRef = useRef(refreshKey);
   const onRefreshedRef = useRef(onRefreshed);
   onRefreshedRef.current = onRefreshed;
+  const onCachedAtRef = useRef(onCachedAt);
+  onCachedAtRef.current = onCachedAt;
   const { ref, inView } = useInView({ rootMargin: '800px' });
 
   const loadPage = useCallback(
@@ -132,7 +133,7 @@ export function Feed({
         cursorRef.current = data.nextCursor ?? cursorRef.current + nextItems.length;
         setTotal(data.total ?? 0);
         setStats(data.stats);
-        setCachedAt(data.cachedAt);
+        onCachedAtRef.current?.(data.cachedAt);
         setError(null);
       } catch (err) {
         if (requestIdRef.current !== requestId) return;
@@ -166,7 +167,6 @@ export function Feed({
     onBusyChange?.(loading);
   }, [loading, onBusyChange]);
 
-  const cacheLabel = cachedAt ? `缓存于 ${formatCacheAge(cachedAt)}` : null;
   const swapping = loading && items.length > 0;
 
   if (error && items.length === 0 && !loading) {
@@ -215,7 +215,6 @@ export function Feed({
             ? `今日 ${total} 条 · 下滑或点刷新换一批`
             : `${items.length}/${total}`}
         {stats?.ok ? ` · ${stats.ok}/${stats.sources} 源` : ''}
-        {cacheLabel ? ` · ${cacheLabel}` : ''}
       </p>
       <div className={`feed-list ${swapping ? 'feed-dim' : ''}`}>
         {items.map((item, index) => (
@@ -247,10 +246,3 @@ export function Feed({
   );
 }
 
-function formatCacheAge(cachedAt: number) {
-  const minutes = Math.max(0, Math.round((Date.now() - cachedAt) / 60000));
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes} 分钟前`;
-  const hours = Math.round(minutes / 60);
-  return `${hours} 小时前`;
-}

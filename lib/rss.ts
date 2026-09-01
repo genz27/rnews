@@ -6,8 +6,29 @@ import { mergeSources, normalizeCategory } from './catalog';
 import { applyTranslation, loadTranslations, startBackgroundTranslation } from './translate';
 import { FeedItem, FeedSource } from './types';
 
+type ParsedItem = {
+  link?: string;
+  guid?: string;
+  title?: string;
+  pubDate?: string;
+  isoDate?: string;
+  published?: string;
+  updated?: string;
+  summary?: string;
+  content?: string;
+  contentSnippet?: string;
+  contentEncoded?: string;
+  description?: string;
+};
+
 const parser = new Parser({
   timeout: 8000,
+  customFields: {
+    item: [
+      ['content:encoded', 'contentEncoded'],
+      ['description', 'description'],
+    ],
+  },
 });
 
 const OPML_URL =
@@ -190,11 +211,15 @@ export async function fetchFeed(source: FeedSource): Promise<FeedItem[]> {
 
   return (feed.items || [])
     .slice(0, 25)
-    .map((item) => {
+    .map((raw) => {
+      const item = raw as ParsedItem;
       const link = item.link || item.guid || source.url;
+      const title = (item.title || '无标题').trim();
+      const snippet = toSnippet(item, title);
       return {
         id: String(item.guid || link || `${source.url}-${item.title}`),
-        title: (item.title || '无标题').trim(),
+        title,
+        ...(snippet ? { snippet } : {}),
         link,
         pubDate: itemDate(item),
         source: source.title,
@@ -202,6 +227,51 @@ export async function fetchFeed(source: FeedSource): Promise<FeedItem[]> {
       } satisfies FeedItem;
     })
     .filter((item) => item.title && item.link);
+}
+
+function toSnippet(item: ParsedItem, title: string): string | undefined {
+  const raw = [item.contentSnippet, item.summary, item.contentEncoded, item.content, item.description].find(
+    (value) => typeof value === 'string' && value.trim()
+  );
+  if (!raw) return undefined;
+  let text = stripHtml(raw);
+  if (!text) return undefined;
+  if (text.startsWith(title)) {
+    text = text.slice(title.length).trim().replace(/^[\s\-—–:：|]+/, '');
+  }
+  if (!text || text === title) return undefined;
+  return clipSnippet(text, 140);
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCharCode(parseInt(code, 16)))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function clipSnippet(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const slice = text.slice(0, max);
+  const breakAt = Math.max(
+    slice.lastIndexOf('。'),
+    slice.lastIndexOf('！'),
+    slice.lastIndexOf('？'),
+    slice.lastIndexOf('. '),
+    slice.lastIndexOf(' ')
+  );
+  const cut = breakAt > max * 0.55 ? slice.slice(0, breakAt + (slice[breakAt] === '。' || slice[breakAt] === '！' || slice[breakAt] === '？' ? 1 : 0)) : slice;
+  return `${cut.trim().replace(/[，,;；:\s]+$/, '')}…`;
 }
 
 async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
@@ -227,7 +297,10 @@ function mergeItems(groups: FeedItem[][]): FeedItem[] {
       const key = (item.link || item.id).split('?')[0].replace(/\/+$/, '').toLowerCase();
       const existing = unique.get(key);
       if (!existing || Date.parse(item.pubDate) > Date.parse(existing.pubDate)) {
-        unique.set(key, item);
+        unique.set(
+          key,
+          !item.snippet && existing?.snippet ? { ...item, snippet: existing.snippet } : item
+        );
       }
     }
   }
@@ -341,8 +414,10 @@ export async function fetchAllFeeds(options?: { force?: boolean }): Promise<Cach
   if (!force && cache && cache.items.length > 0) {
     const age = Date.now() - cache.time;
     cache = stampTranslations(cache);
-    if (age < FRESH_MS && !cache.partial) return cache;
-    if (age < STALE_MS) {
+    const needSnippets =
+      cache.items.length > 8 && cache.items.slice(0, 40).every((item) => !item.snippet);
+    if (age < FRESH_MS && !cache.partial && !needSnippets) return cache;
+    if (age < STALE_MS || needSnippets) {
       if (!inflight) {
         const pending = refreshAll();
         inflight = pending;
@@ -401,6 +476,7 @@ export function filterItems(
       (item) =>
         item.title.toLowerCase().includes(q) ||
         (item.titleZh && item.titleZh.toLowerCase().includes(q)) ||
+        (item.snippet && item.snippet.toLowerCase().includes(q)) ||
         item.source.toLowerCase().includes(q)
     );
   }
