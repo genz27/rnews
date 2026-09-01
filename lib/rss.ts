@@ -257,11 +257,7 @@ function similarText(a: string, b: string): boolean {
   const left = a.toLowerCase().replace(/\s+/g, '');
   const right = b.toLowerCase().replace(/\s+/g, '');
   if (!left || !right) return true;
-  if (left === right) return true;
-  if (left.startsWith(right) || right.startsWith(left)) {
-    return Math.abs(left.length - right.length) < 16;
-  }
-  return false;
+  return left === right || left.startsWith(right) || right.startsWith(left);
 }
 
 function stripHtml(html: string): string {
