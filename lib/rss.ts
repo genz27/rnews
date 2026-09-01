@@ -39,7 +39,6 @@ const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Rnews/1.0';
 
 const FRESH_MS = 20 * 60 * 1000;
-const STALE_MS = 6 * 60 * 60 * 1000;
 const FEED_TIMEOUT_MS = 7000;
 const CONCURRENCY = 28;
 
@@ -109,7 +108,7 @@ export function ensureBackgroundRefresh() {
   const globalState = globalThis as typeof globalThis & { __rssRefreshTimer?: ReturnType<typeof setInterval> };
   if (globalState.__rssRefreshTimer) return;
   globalState.__rssRefreshTimer = setInterval(() => {
-    void fetchAllFeeds({ force: true });
+    scheduleFeedRefresh(true);
   }, FRESH_MS);
 }
 
@@ -118,7 +117,7 @@ export async function warmupFeeds() {
   ensureBackgroundRefresh();
   const age = cache ? Date.now() - cache.time : Number.POSITIVE_INFINITY;
   if (!cache?.items.length || age > FRESH_MS) {
-    void fetchAllFeeds({ force: Boolean(cache?.items.length) });
+    scheduleFeedRefresh(Boolean(cache?.items.length));
   }
 }
 
@@ -430,38 +429,45 @@ function stampTranslations(state: CacheState): CacheState {
   return { ...state, items };
 }
 
-export async function fetchAllFeeds(options?: { force?: boolean }): Promise<CacheState> {
-  const force = options?.force ?? false;
+function emptyCache(): CacheState {
+  return { items: [], time: Date.now(), ok: 0, failed: 0, sources: 0 };
+}
+
+function needsRefresh(state: CacheState) {
+  const age = Date.now() - state.time;
+  const needSnippets =
+    state.items.length > 8 && state.items.slice(0, 40).every((item) => !item.snippet);
+  return state.partial || age >= FRESH_MS || needSnippets;
+}
+
+function startRefresh() {
+  if (inflight) return inflight;
+  const pending = refreshAll();
+  inflight = pending;
+  void pending.finally(() => {
+    if (inflight === pending) inflight = null;
+  });
+  return pending;
+}
+
+export function scheduleFeedRefresh(force = false) {
+  if (!force && cache && cache.items.length > 0 && !needsRefresh(cache)) return;
+  startRefresh();
+}
+
+export async function fetchAllFeeds(options?: { wait?: boolean }): Promise<CacheState> {
+  const wait = options?.wait ?? false;
   await ensureDiskLoaded();
 
-  if (!force && cache && cache.items.length > 0) {
-    const age = Date.now() - cache.time;
-    cache = stampTranslations(cache);
-    const needSnippets =
-      cache.items.length > 8 && cache.items.slice(0, 40).every((item) => !item.snippet);
-    if (age < FRESH_MS && !cache.partial && !needSnippets) return cache;
-    if (age < STALE_MS || needSnippets) {
-      if (!inflight) {
-        const pending = refreshAll();
-        inflight = pending;
-        void pending.finally(() => {
-          if (inflight === pending) inflight = null;
-        });
-      }
-      return cache;
-    }
+  if (wait) {
+    return stampTranslations(await startRefresh());
   }
 
-  if (!inflight || force) {
-    const pending = refreshAll();
-    inflight = pending;
-    void pending.finally(() => {
-      if (inflight === pending) inflight = null;
-    });
+  if (cache?.items.length) {
+    return stampTranslations(cache);
   }
 
-  if (!force && cache?.items.length) return stampTranslations(cache);
-
+  startRefresh();
   const started = Date.now();
   while (Date.now() - started < 12000) {
     if (cache?.items.length) return stampTranslations(cache);
@@ -469,17 +475,9 @@ export async function fetchAllFeeds(options?: { force?: boolean }): Promise<Cach
     await new Promise((resolve) => setTimeout(resolve, 150));
   }
 
+  if (cache?.items.length) return stampTranslations(cache);
   if (inflight) return stampTranslations(await inflight);
-
-  return stampTranslations(
-    cache ?? {
-      items: [],
-      time: Date.now(),
-      ok: 0,
-      failed: 0,
-      sources: 0,
-    }
-  );
+  return stampTranslations(cache ?? emptyCache());
 }
 
 export function filterItems(

@@ -1,6 +1,7 @@
+import { after } from 'next/server';
 import { HomeView } from '@/components/HomeView';
 import { getCatalogCategories } from '@/lib/catalog';
-import { ensureBackgroundRefresh, fetchAllFeeds, filterItems, pickRandomItems } from '@/lib/rss';
+import { ensureBackgroundRefresh, fetchAllFeeds, filterItems, pickRandomItems, scheduleFeedRefresh } from '@/lib/rss';
 import { hydrateTranslations } from '@/lib/translate';
 
 export const dynamic = 'force-dynamic';
@@ -20,6 +21,7 @@ export default async function Page({ searchParams }: PageProps) {
 
   ensureBackgroundRefresh();
   const snapshot = await fetchAllFeeds();
+  after(() => scheduleFeedRefresh());
   const pool = filterItems(snapshot.items, category, query);
   const firstPage =
     category === '推荐' && !query

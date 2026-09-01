@@ -51,6 +51,7 @@ export function Feed({
   const [total, setTotal] = useState(hasInitial ? initialTotal : 0);
   const [stats, setStats] = useState<FeedResponse['stats']>(initialStats);
   const [enterFrom, setEnterFrom] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const cursorRef = useRef(hasInitial ? initialItems.length : 0);
   const requestIdRef = useRef(0);
   const skipNextReset = useRef(hasInitial);
@@ -81,7 +82,8 @@ export function Feed({
       prevRefreshRef.current = refreshKey;
 
       if (reset) {
-        setLoading(true);
+        if (refreshChanged && itemsRef.current.length > 0) setRefreshing(true);
+        else setLoading(true);
         setError(null);
         cursorRef.current = 0;
         if (shouldScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -90,9 +92,9 @@ export function Feed({
       }
 
       const seed = Date.now();
-      const excludeIds = reset
-        ? []
-        : itemsRef.current.slice(-EXCLUDE_WINDOW).map((item) => item.id);
+      const excludeIds = recommend
+        ? itemsRef.current.slice(-EXCLUDE_WINDOW).map((item) => item.id)
+        : [];
 
       try {
         const params = new URLSearchParams({
@@ -100,7 +102,7 @@ export function Feed({
         });
         if (category && category !== '全部') params.set('category', category);
         if (searchQuery) params.set('q', searchQuery);
-        if (refreshKey > 0 && reset && !recommend) params.set('refresh', '1');
+        if (refreshKey > 0 && reset) params.set('refresh', '1');
         if (recommend) {
           params.set('seed', String(seed));
           if (excludeIds.length > 0) params.set('exclude', excludeIds.join(','));
@@ -143,6 +145,7 @@ export function Feed({
         if (requestIdRef.current === requestId) {
           setLoading(false);
           setLoadingMore(false);
+          setRefreshing(false);
         }
       }
     },
@@ -164,8 +167,8 @@ export function Feed({
   }, [inView, hasMore, loading, loadingMore, items.length, loadPage]);
 
   useEffect(() => {
-    onBusyChange?.(loading);
-  }, [loading, onBusyChange]);
+    onBusyChange?.(loading || refreshing);
+  }, [loading, onBusyChange, refreshing]);
 
   const swapping = loading && items.length > 0;
 

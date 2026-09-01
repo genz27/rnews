@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     if (blocked) return blocked;
   }
 
-  const snapshot = await fetchAllFeeds({ force: true });
+  const snapshot = await fetchAllFeeds({ wait: true });
   return NextResponse.json({
     ok: true,
     total: snapshot.items.length,

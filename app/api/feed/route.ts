@@ -1,5 +1,6 @@
+import { after } from 'next/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchAllFeeds, filterItems, pickRandomItems } from '@/lib/rss';
+import { fetchAllFeeds, filterItems, pickRandomItems, scheduleFeedRefresh } from '@/lib/rss';
 import { hydrateTranslations } from '@/lib/translate';
 import { FeedResponse } from '@/lib/types';
 import { attachRateLimitHeaders, rateLimit } from '@/lib/rate-limit';
@@ -27,14 +28,15 @@ export async function GET(request: NextRequest) {
       .map((id) => id.trim())
       .filter(Boolean);
 
-    const snapshot = await fetchAllFeeds({ force });
+    const snapshot = await fetchAllFeeds();
+    after(() => scheduleFeedRefresh(force));
     const pool = filterItems(snapshot.items, category, query);
     const recommend = category === '推荐' && !query;
 
     const page = recommend
       ? pickRandomItems(pool, ITEMS_PER_PAGE, seed, exclude)
       : pool.slice(cursor, cursor + ITEMS_PER_PAGE);
-    const paginatedItems = await hydrateTranslations(page, { immediate: ITEMS_PER_PAGE });
+    const paginatedItems = await hydrateTranslations(page, { immediate: 0 });
     const hasMore = recommend ? pool.length > 0 : cursor + ITEMS_PER_PAGE < pool.length;
 
     const response: FeedResponse = {
