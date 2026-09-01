@@ -71,7 +71,7 @@ npx vercel --prod
 
 ## 订阅源
 
-内置目录约 110 个源，再从 [top-rss-list](https://github.com/weekend-project-space/top-rss-list) 接入约 90 个能拉到的技术 / 产品源（上游中文表约 340 行，时政、生活、娱乐和失效地址不收）。分类：社区、AI、资讯、工程、主机。
+内置目录约 110 个源，再从 [top-rss-list](https://github.com/weekend-project-space/top-rss-list) 接入能拉到的技术 / 产品源，并补了一批国内科技媒体（快科技、中关村在线、新浪科技、开源中国、蓝点网、威锋网等）。分类：社区、AI、资讯、工程、主机。
 
 首页「推荐」不是固定列表：点刷新或滑到尽头都会从今日内容里再抽一批，类似刷视频。
 

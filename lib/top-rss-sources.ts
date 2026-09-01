@@ -42,6 +42,20 @@ export const TOP_RSS_SOURCES: FeedSource[] = [
   { title: '钛媒体', url: 'https://www.tmtpost.com/feed', category: '资讯' },
   { title: 'cnBeta', url: 'https://plink.anyfeeder.com/cnbeta', category: '资讯' },
   { title: 'Readhub', url: 'https://readhub.cn/rss', category: '资讯' },
+  { title: '快科技', url: 'https://rss.mydrivers.com/rss.aspx?z=1', category: '资讯' },
+  { title: '中关村在线', url: 'https://rss.zol.com.cn/news.xml', category: '资讯' },
+  { title: '新浪科技', url: 'https://rss.sina.com.cn/tech/rollnews.xml', category: '资讯' },
+  { title: '新浪创事记', url: 'https://plink.anyfeeder.com/sina/csj', category: '资讯' },
+  { title: '开源中国新闻', url: 'https://www.oschina.net/news/rss', category: '资讯' },
+  { title: 'InfoQ 中文', url: 'https://www.infoq.cn/feed', category: '资讯' },
+  { title: '蓝点网', url: 'https://www.landiannews.com/feed', category: '资讯' },
+  { title: '威锋网', url: 'https://www.feng.com/rss.xml', category: '资讯' },
+  { title: '数字尾巴', url: 'https://www.dgtle.com/rss/dgtle.xml', category: '资讯' },
+  { title: '软餐', url: 'https://www.ruancan.com/feed', category: '资讯' },
+  { title: '雷科技', url: 'https://www.leikeji.com/rss', category: '资讯' },
+  { title: '财富科技', url: 'https://plink.anyfeeder.com/fortunechina/keji', category: '资讯' },
+  { title: '知识分子', url: 'https://plink.anyfeeder.com/weixin/The-Intellectual', category: '资讯' },
+  { title: '先知社区', url: 'https://xz.aliyun.com/feed', category: '资讯' },
   { title: '腾讯科技', url: 'https://plink.anyfeeder.com/weixin/qqtech', category: '资讯' },
   { title: '阑夕', url: 'https://plink.anyfeeder.com/weixin/techread', category: '资讯' },
   { title: '小道消息', url: 'https://plink.anyfeeder.com/weixin/WebNotes', category: '资讯' },
@@ -58,6 +72,7 @@ export const TOP_RSS_SOURCES: FeedSource[] = [
   // AI
   { title: '微软研究院 AI 头条', url: 'https://plink.anyfeeder.com/weixin/MSRAsia', category: 'AI' },
   { title: '新智元', url: 'https://plink.anyfeeder.com/weixin/AI_era', category: 'AI' },
+  { title: '机器之心微信', url: 'https://plink.anyfeeder.com/weixin/almosthuman2014', category: 'AI' },
 
   // 工程
   { title: '美团技术团队', url: 'https://tech.meituan.com/feed/', category: '工程' },
