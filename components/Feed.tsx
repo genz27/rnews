@@ -1,5 +1,6 @@
 'use client';
 
+import { getCatalogCategories } from '@/lib/catalog';
 import { FeedItem, FeedResponse } from '@/lib/types';
 import { FeedRow, FeedRowSkeleton } from './FeedCard';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -13,6 +14,7 @@ interface FeedProps {
   initialTotal?: number;
   initialHasMore?: boolean;
   initialStats?: FeedResponse['stats'];
+  initialCachedAt?: number;
   onBusyChange?: (busy: boolean) => void;
   onRefreshed?: () => void;
   onCachedAt?: (cachedAt?: number) => void;
@@ -22,6 +24,19 @@ interface FeedProps {
 
 const EXCLUDE_WINDOW = 80;
 
+type CachedPage = {
+  items: FeedItem[];
+  hasMore: boolean;
+  total: number;
+  stats?: FeedResponse['stats'];
+  cachedAt?: number;
+  cursor: number;
+};
+
+function pageKey(category: string, query: string) {
+  return query ? `q:${category}:${query}` : `c:${category}`;
+}
+
 export function Feed({
   category,
   searchQuery,
@@ -30,6 +45,7 @@ export function Feed({
   initialTotal = 0,
   initialHasMore = false,
   initialStats,
+  initialCachedAt,
   onBusyChange,
   onRefreshed,
   onCachedAt,
@@ -50,13 +66,14 @@ export function Feed({
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(hasInitial ? initialTotal : 0);
   const [stats, setStats] = useState<FeedResponse['stats']>(initialStats);
-  const [enterFrom, setEnterFrom] = useState(0);
+  const [enterFrom, setEnterFrom] = useState(hasInitial ? initialItems.length : 0);
   const [refreshing, setRefreshing] = useState(false);
   const cursorRef = useRef(hasInitial ? initialItems.length : 0);
   const requestIdRef = useRef(0);
   const skipNextReset = useRef(hasInitial);
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  const pageCacheRef = useRef(new Map<string, CachedPage>());
   const prevSearchRef = useRef(searchQuery);
   const prevCategoryRef = useRef(category);
   const prevRefreshRef = useRef(refreshKey);
@@ -66,27 +83,76 @@ export function Feed({
   onCachedAtRef.current = onCachedAt;
   const { ref, inView } = useInView({ rootMargin: '800px' });
 
+  if (hasInitial && !pageCacheRef.current.has(pageKey(bootRef.current.category, bootRef.current.searchQuery))) {
+    pageCacheRef.current.set(pageKey(bootRef.current.category, bootRef.current.searchQuery), {
+      items: initialItems,
+      hasMore: initialHasMore,
+      total: initialTotal,
+      stats: initialStats,
+      cachedAt: initialCachedAt,
+      cursor: initialItems.length,
+    });
+  }
+
+  const showPage = useCallback((entry: CachedPage, animate: boolean) => {
+    setItems(entry.items);
+    setHasMore(entry.hasMore);
+    setTotal(entry.total);
+    setStats(entry.stats);
+    setEnterFrom(animate ? 0 : entry.items.length);
+    cursorRef.current = entry.cursor;
+    onCachedAtRef.current?.(entry.cachedAt);
+    setError(null);
+    setLoading(false);
+    setLoadingMore(false);
+    setRefreshing(false);
+  }, []);
+
+  const remember = useCallback(
+    (key: string, data: FeedResponse, nextItems: FeedItem[], cursor: number) => {
+      pageCacheRef.current.set(key, {
+        items: nextItems,
+        hasMore: Boolean(data.hasMore),
+        total: data.total ?? 0,
+        stats: data.stats,
+        cachedAt: data.cachedAt,
+        cursor,
+      });
+    },
+    []
+  );
+
   const loadPage = useCallback(
     async (reset: boolean) => {
-      const requestId = reset ? requestIdRef.current + 1 : requestIdRef.current;
-      requestIdRef.current = requestId;
-
       const searchChanged = prevSearchRef.current !== searchQuery;
       const refreshChanged = prevRefreshRef.current !== refreshKey;
-      const shouldScroll =
-        reset &&
-        (prevCategoryRef.current !== category || refreshChanged) &&
-        !searchChanged;
+      const categoryChanged = prevCategoryRef.current !== category;
+      const shouldScroll = reset && (categoryChanged || refreshChanged) && !searchChanged;
       prevSearchRef.current = searchQuery;
       prevCategoryRef.current = category;
       prevRefreshRef.current = refreshKey;
 
+      const key = pageKey(category, searchQuery);
+      if (refreshChanged) pageCacheRef.current.clear();
+
+      if (reset && !refreshChanged) {
+        const cached = pageCacheRef.current.get(key);
+        if (cached?.items.length) {
+          showPage(cached, false);
+          if (shouldScroll) window.scrollTo({ top: 0, behavior: 'instant' });
+          return;
+        }
+      }
+
+      const requestId = reset ? requestIdRef.current + 1 : requestIdRef.current;
+      requestIdRef.current = requestId;
+
       if (reset) {
-        if (refreshChanged && itemsRef.current.length > 0) setRefreshing(true);
+        if (itemsRef.current.length > 0) setRefreshing(true);
         else setLoading(true);
         setError(null);
         cursorRef.current = 0;
-        if (shouldScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (shouldScroll) window.scrollTo({ top: 0, behavior: 'instant' });
       } else {
         setLoadingMore(true);
       }
@@ -108,7 +174,9 @@ export function Feed({
           if (excludeIds.length > 0) params.set('exclude', excludeIds.join(','));
         }
 
-        const response = await fetch(`/api/feed?${params.toString()}`, { cache: 'no-store' });
+        const response = await fetch(`/api/feed?${params.toString()}`, {
+          cache: recommend || refreshKey > 0 ? 'no-store' : 'default',
+        });
         const data = (await response.json()) as FeedResponse & { error?: string };
         if (requestIdRef.current !== requestId) return;
 
@@ -120,6 +188,7 @@ export function Feed({
         if (reset) {
           setEnterFrom(0);
           setItems(nextItems);
+          remember(key, data, nextItems, data.nextCursor ?? nextItems.length);
           if (refreshChanged) onRefreshedRef.current?.();
         } else {
           const from = itemsRef.current.length;
@@ -127,8 +196,9 @@ export function Feed({
           setItems((prev) => {
             const seen = new Set(prev.map((item) => item.id));
             const unique = nextItems.filter((item) => !seen.has(item.id));
-            if (unique.length === 0) return [...prev, ...nextItems];
-            return [...prev, ...unique];
+            const merged = unique.length === 0 ? [...prev, ...nextItems] : [...prev, ...unique];
+            remember(key, data, merged, data.nextCursor ?? cursorRef.current + nextItems.length);
+            return merged;
           });
         }
         setHasMore(Boolean(data.hasMore));
@@ -140,7 +210,7 @@ export function Feed({
       } catch (err) {
         if (requestIdRef.current !== requestId) return;
         setError(err instanceof Error ? err.message : '加载失败');
-        if (reset) setItems([]);
+        if (reset && itemsRef.current.length === 0) setItems([]);
       } finally {
         if (requestIdRef.current === requestId) {
           setLoading(false);
@@ -149,7 +219,7 @@ export function Feed({
         }
       }
     },
-    [category, recommend, refreshKey, searchQuery]
+    [category, recommend, refreshKey, remember, searchQuery, showPage]
   );
 
   useEffect(() => {
@@ -161,16 +231,34 @@ export function Feed({
   }, [loadPage]);
 
   useEffect(() => {
-    if (inView && hasMore && !loading && !loadingMore && items.length > 0) {
+    if (inView && hasMore && !loading && !loadingMore && !refreshing && items.length > 0) {
       void loadPage(false);
     }
-  }, [inView, hasMore, loading, loadingMore, items.length, loadPage]);
+  }, [inView, hasMore, loading, loadingMore, refreshing, items.length, loadPage]);
 
   useEffect(() => {
     onBusyChange?.(loading || refreshing);
   }, [loading, onBusyChange, refreshing]);
 
-  const swapping = loading && items.length > 0;
+  useEffect(() => {
+    const categories = getCatalogCategories();
+    const timer = window.setTimeout(() => {
+      categories.forEach((name) => {
+        const key = pageKey(name, '');
+        if (pageCacheRef.current.has(key)) return;
+        const params = new URLSearchParams();
+        if (name && name !== '全部') params.set('category', name);
+        void fetch(`/api/feed?${params.toString()}`, { cache: name === '推荐' ? 'no-store' : 'default' })
+          .then((response) => response.json() as Promise<FeedResponse>)
+          .then((data) => {
+            if (!data.items?.length || pageCacheRef.current.has(key)) return;
+            remember(key, data, data.items, data.nextCursor ?? data.items.length);
+          })
+          .catch(() => undefined);
+      });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [remember]);
 
   if (error && items.length === 0 && !loading) {
     return (
@@ -219,7 +307,7 @@ export function Feed({
             : `${items.length}/${total}`}
         {stats?.ok ? ` · ${stats.ok}/${stats.sources} 源` : ''}
       </p>
-      <div className={`feed-list ${swapping ? 'feed-dim' : ''}`}>
+      <div className="feed-list">
         {items.map((item, index) => (
           <FeedRow
             key={`${item.id}-${index}`}
@@ -248,4 +336,3 @@ export function Feed({
     </div>
   );
 }
-

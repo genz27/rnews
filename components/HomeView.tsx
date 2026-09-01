@@ -306,6 +306,7 @@ export function HomeView({
             initialTotal={initialTotal}
             initialHasMore={initialHasMore}
             initialStats={initialStats}
+            initialCachedAt={initialCachedAt}
             onBusyChange={handleBusy}
             onRefreshed={handleRefreshed}
             onCachedAt={setCachedAt}

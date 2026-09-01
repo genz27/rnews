@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Cache-Control': recommend
           ? 'no-store'
-          : 'public, s-maxage=60, stale-while-revalidate=600',
+          : 'public, max-age=30, s-maxage=60, stale-while-revalidate=600',
       },
     });
     return attachRateLimitHeaders(json, request, { limit: RATE_LIMIT, name: 'site' });
