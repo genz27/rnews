@@ -1,5 +1,5 @@
 import { HomeView } from '@/components/HomeView';
-import { filterItems, fetchAllFeeds, ensureBackgroundRefresh } from '@/lib/rss';
+import { ensureBackgroundRefresh, fetchAllFeeds, filterItems, pickRandomItems } from '@/lib/rss';
 import { hydrateTranslations } from '@/lib/translate';
 
 export const dynamic = 'force-dynamic';
@@ -9,13 +9,15 @@ const PAGE_SIZE = 40;
 export default async function Page() {
   ensureBackgroundRefresh();
   const snapshot = await fetchAllFeeds();
-  const translated = await hydrateTranslations(filterItems(snapshot.items, '推荐'), { immediate: 40 });
+  const recommended = filterItems(snapshot.items, '推荐');
+  const firstPage = pickRandomItems(recommended, PAGE_SIZE, Date.now());
+  const translated = await hydrateTranslations(firstPage, { immediate: PAGE_SIZE });
 
   return (
     <HomeView
-      initialItems={translated.slice(0, PAGE_SIZE)}
-      initialTotal={translated.length}
-      initialHasMore={translated.length > PAGE_SIZE}
+      initialItems={translated}
+      initialTotal={recommended.length}
+      initialHasMore={recommended.length > 0}
       initialStats={{
         sources: snapshot.sources,
         ok: snapshot.ok,

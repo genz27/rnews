@@ -16,6 +16,8 @@ interface FeedProps {
   initialCachedAt?: number;
 }
 
+const EXCLUDE_WINDOW = 80;
+
 export function Feed({
   category,
   searchQuery,
@@ -26,7 +28,9 @@ export function Feed({
   initialStats,
   initialCachedAt,
 }: FeedProps) {
-  const hasInitial = initialItems.length > 0 && category === '推荐' && !searchQuery && refreshKey === 0;
+  const recommend = category === '推荐' && !searchQuery;
+  const hasInitial =
+    initialItems.length > 0 && category === '推荐' && !searchQuery && refreshKey === 0;
   const [items, setItems] = useState<FeedItem[]>(hasInitial ? initialItems : []);
   const [hasMore, setHasMore] = useState(hasInitial ? initialHasMore : true);
   const [loading, setLoading] = useState(!hasInitial);
@@ -38,6 +42,8 @@ export function Feed({
   const cursorRef = useRef(hasInitial ? initialItems.length : 0);
   const requestIdRef = useRef(0);
   const skipNextReset = useRef(hasInitial);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
   const { ref, inView } = useInView({ rootMargin: '800px' });
 
   const loadPage = useCallback(
@@ -53,13 +59,22 @@ export function Feed({
         setLoadingMore(true);
       }
 
+      const seed = Date.now();
+      const excludeIds = reset
+        ? []
+        : itemsRef.current.slice(-EXCLUDE_WINDOW).map((item) => item.id);
+
       try {
         const params = new URLSearchParams({
           cursor: String(reset ? 0 : cursorRef.current),
         });
         if (category && category !== '全部') params.set('category', category);
         if (searchQuery) params.set('q', searchQuery);
-        if (refreshKey > 0 && reset) params.set('refresh', '1');
+        if (refreshKey > 0 && reset && !recommend) params.set('refresh', '1');
+        if (recommend) {
+          params.set('seed', String(seed));
+          if (excludeIds.length > 0) params.set('exclude', excludeIds.join(','));
+        }
 
         const response = await fetch(`/api/feed?${params.toString()}`, { cache: 'no-store' });
         const data = (await response.json()) as FeedResponse & { error?: string };
@@ -70,7 +85,13 @@ export function Feed({
         }
 
         const nextItems = data.items || [];
-        setItems((prev) => (reset ? nextItems : [...prev, ...nextItems]));
+        setItems((prev) => {
+          if (reset) return nextItems;
+          const seen = new Set(prev.map((item) => item.id));
+          const unique = nextItems.filter((item) => !seen.has(item.id));
+          if (unique.length === 0) return [...prev, ...nextItems];
+          return [...prev, ...unique];
+        });
         setHasMore(Boolean(data.hasMore));
         cursorRef.current = data.nextCursor ?? cursorRef.current + nextItems.length;
         setTotal(data.total ?? 0);
@@ -88,7 +109,7 @@ export function Feed({
         }
       }
     },
-    [category, searchQuery, refreshKey]
+    [category, recommend, refreshKey, searchQuery]
   );
 
   useEffect(() => {
@@ -105,9 +126,7 @@ export function Feed({
     }
   }, [inView, hasMore, loading, loadingMore, items.length, loadPage]);
 
-  const cacheLabel = cachedAt
-    ? `缓存于 ${formatCacheAge(cachedAt)}`
-    : null;
+  const cacheLabel = cachedAt ? `缓存于 ${formatCacheAge(cachedAt)}` : null;
 
   if (error && items.length === 0 && !loading) {
     return (
@@ -135,13 +154,17 @@ export function Feed({
   }
 
   if (!loading && items.length === 0) {
-    return <p className="py-16 text-center text-sm text-zinc-500">这个分类暂时没有内容。</p>;
+    return (
+      <p className="py-16 text-center text-sm text-zinc-500">
+        {recommend ? '今天还没有新内容，稍后再刷一次。' : '这个分类暂时没有内容。'}
+      </p>
+    );
   }
 
   return (
     <div className="animate-in">
       <p className="mb-3 text-[13px] text-zinc-500">
-        {items.length}/{total}
+        {recommend ? `今日 ${total} 条 · 下滑或点刷新换一批` : `${items.length}/${total}`}
         {stats?.ok ? ` · ${stats.ok}/${stats.sources} 源` : ''}
         {cacheLabel ? ` · ${cacheLabel}` : ''}
       </p>
@@ -149,8 +172,10 @@ export function Feed({
         <FeedRow key={`${item.id}-${index}`} item={item} />
       ))}
       <div ref={ref} className="flex justify-center py-8">
-        {loadingMore && <span className="text-xs text-zinc-500">加载更多</span>}
-        {!hasMore && items.length > 0 && <span className="text-xs text-zinc-600">已经到底了</span>}
+        {loadingMore && <span className="text-xs text-zinc-500">换一批…</span>}
+        {!hasMore && items.length > 0 && !recommend && (
+          <span className="text-xs text-zinc-600">已经到底了</span>
+        )}
       </div>
     </div>
   );

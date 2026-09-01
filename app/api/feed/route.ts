@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchAllFeeds, filterItems } from '@/lib/rss';
+import { fetchAllFeeds, filterItems, pickRandomItems } from '@/lib/rss';
+import { hydrateTranslations } from '@/lib/translate';
 import { FeedResponse } from '@/lib/types';
 
 const ITEMS_PER_PAGE = 40;
@@ -15,19 +16,27 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category') || '';
     const query = searchParams.get('q') || '';
     const force = searchParams.get('refresh') === '1';
+    const seed = searchParams.get('seed') || String(Date.now());
+    const exclude = (searchParams.get('exclude') || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
 
     const snapshot = await fetchAllFeeds({ force });
-    const items = filterItems(snapshot.items, category, query);
+    const pool = filterItems(snapshot.items, category, query);
+    const recommend = category === '推荐' && !query;
 
-    const endIndex = cursor + ITEMS_PER_PAGE;
-    const paginatedItems = items.slice(cursor, endIndex);
-    const hasMore = endIndex < items.length;
+    const page = recommend
+      ? pickRandomItems(pool, ITEMS_PER_PAGE, seed, exclude)
+      : pool.slice(cursor, cursor + ITEMS_PER_PAGE);
+    const paginatedItems = await hydrateTranslations(page, { immediate: ITEMS_PER_PAGE });
+    const hasMore = recommend ? pool.length > 0 : cursor + ITEMS_PER_PAGE < pool.length;
 
     const response: FeedResponse = {
       items: paginatedItems,
       hasMore,
-      nextCursor: hasMore ? endIndex : undefined,
-      total: items.length,
+      nextCursor: recommend ? cursor + paginatedItems.length : hasMore ? cursor + ITEMS_PER_PAGE : undefined,
+      total: pool.length,
       stats: {
         sources: snapshot.sources,
         ok: snapshot.ok,
@@ -38,7 +47,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(response, {
       headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=600',
+        'Cache-Control': recommend
+          ? 'no-store'
+          : 'public, s-maxage=60, stale-while-revalidate=600',
       },
     });
   } catch (error) {

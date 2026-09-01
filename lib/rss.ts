@@ -389,7 +389,7 @@ export function filterItems(
 ): FeedItem[] {
   let next = items;
   if (category === '推荐') {
-    next = recommendToday(items);
+    next = todayPool(items);
   } else if (category && category !== '全部' && category !== 'All') {
     next = next.filter((item) => normalizeCategory(item.category) === category);
   }
@@ -420,14 +420,28 @@ function isSameShanghaiDay(iso: string, day = shanghaiDay()): boolean {
   return shanghaiDay(new Date(time)) === day;
 }
 
-function recommendToday(items: FeedItem[]): FeedItem[] {
+function todayPool(items: FeedItem[]): FeedItem[] {
   const day = shanghaiDay();
-  let pool = items.filter((item) => isSameShanghaiDay(item.pubDate, day));
-  if (pool.length < 24) {
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-    pool = items.filter((item) => Date.parse(item.pubDate) >= cutoff);
-  }
-  return seededShuffle(pool, `recommend:${day}`);
+  const today = items.filter((item) => isSameShanghaiDay(item.pubDate, day));
+  if (today.length >= 24) return today;
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  return items.filter((item) => Date.parse(item.pubDate) >= cutoff);
+}
+
+export function pickRandomItems(
+  items: FeedItem[],
+  count: number,
+  seed: string | number,
+  excludeIds: string[] = []
+): FeedItem[] {
+  if (items.length === 0 || count <= 0) return [];
+  const excluded = new Set(excludeIds.filter(Boolean));
+  const fresh =
+    excluded.size > 0
+      ? items.filter((item) => !excluded.has(item.id) && !excluded.has(item.link))
+      : items;
+  const source = fresh.length >= Math.min(count, 8) ? fresh : items;
+  return seededShuffle(source, String(seed)).slice(0, Math.min(count, source.length));
 }
 
 function seededShuffle<T>(items: T[], seed: string): T[] {
