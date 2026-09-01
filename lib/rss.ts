@@ -388,7 +388,9 @@ export function filterItems(
   query?: string
 ): FeedItem[] {
   let next = items;
-  if (category && category !== '全部' && category !== 'All') {
+  if (category === '推荐') {
+    next = recommendToday(items);
+  } else if (category && category !== '全部' && category !== 'All') {
     next = next.filter((item) => normalizeCategory(item.category) === category);
   }
   if (query) {
@@ -401,4 +403,57 @@ export function filterItems(
     );
   }
   return next;
+}
+
+function shanghaiDay(date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+function isSameShanghaiDay(iso: string, day = shanghaiDay()): boolean {
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return false;
+  return shanghaiDay(new Date(time)) === day;
+}
+
+function recommendToday(items: FeedItem[]): FeedItem[] {
+  const day = shanghaiDay();
+  let pool = items.filter((item) => isSameShanghaiDay(item.pubDate, day));
+  if (pool.length < 24) {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    pool = items.filter((item) => Date.parse(item.pubDate) >= cutoff);
+  }
+  return seededShuffle(pool, `recommend:${day}`);
+}
+
+function seededShuffle<T>(items: T[], seed: string): T[] {
+  const next = [...items];
+  const random = mulberry32(hashSeed(seed));
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+  return next;
+}
+
+function hashSeed(seed: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = Math.imul(hash ^ seed.charCodeAt(i), 16777619);
+  }
+  return hash >>> 0;
+}
+
+function mulberry32(seed: number) {
+  return () => {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }

@@ -173,7 +173,7 @@ export const FEED_CATALOG: FeedSource[] = [
 ];
 
 export function getCatalogCategories(): string[] {
-  return ['全部', ...CATEGORY_ORDER];
+  return ['推荐', '全部', ...CATEGORY_ORDER];
 }
 
 export function mergeSources(extra: FeedSource[]): FeedSource[] {

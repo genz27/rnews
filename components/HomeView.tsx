@@ -24,7 +24,7 @@ export function HomeView({
   initialCachedAt,
 }: HomeViewProps) {
   const [categories, setCategories] = useState<string[]>(getCatalogCategories());
-  const [selectedCategory, setSelectedCategory] = useState('全部');
+  const [selectedCategory, setSelectedCategory] = useState('推荐');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
 

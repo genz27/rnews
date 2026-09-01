@@ -26,7 +26,7 @@ export function Feed({
   initialStats,
   initialCachedAt,
 }: FeedProps) {
-  const hasInitial = initialItems.length > 0 && category === '全部' && !searchQuery && refreshKey === 0;
+  const hasInitial = initialItems.length > 0 && category === '推荐' && !searchQuery && refreshKey === 0;
   const [items, setItems] = useState<FeedItem[]>(hasInitial ? initialItems : []);
   const [hasMore, setHasMore] = useState(hasInitial ? initialHasMore : true);
   const [loading, setLoading] = useState(!hasInitial);

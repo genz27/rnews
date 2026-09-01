@@ -9,7 +9,7 @@ const PAGE_SIZE = 40;
 export default async function Page() {
   ensureBackgroundRefresh();
   const snapshot = await fetchAllFeeds();
-  const translated = await hydrateTranslations(filterItems(snapshot.items), { immediate: 40 });
+  const translated = await hydrateTranslations(filterItems(snapshot.items, '推荐'), { immediate: 40 });
 
   return (
     <HomeView
