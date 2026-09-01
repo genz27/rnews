@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { after, NextRequest } from 'next/server';
 import {
   corsOptions,
   filterSince,
@@ -9,7 +9,7 @@ import {
   parseSince,
 } from '@/lib/public-api';
 import { rateLimit, attachRateLimitHeaders } from '@/lib/rate-limit';
-import { fetchAllFeeds, filterItems } from '@/lib/rss';
+import { fetchAllFeeds, filterItems, scheduleMissingTranslations } from '@/lib/rss';
 import { applyTranslation } from '@/lib/translate';
 
 export const dynamic = 'force-dynamic';
@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     const snapshot = await fetchAllFeeds();
+    after(() => scheduleMissingTranslations());
     const pool = filterSince(
       filterItems(snapshot.items, category, query).sort(
         (a, b) => Date.parse(b.pubDate) - Date.parse(a.pubDate)

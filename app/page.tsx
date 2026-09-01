@@ -4,7 +4,7 @@ import { HomeView } from '@/components/HomeView';
 import { CATEGORY_COOKIE, readCategoryCookie } from '@/lib/category-pref';
 import { getCatalogCategories } from '@/lib/catalog';
 import { buildInitialPages, buildPage, pageKey } from '@/lib/feed-page';
-import { ensureBackgroundRefresh, fetchAllFeeds, scheduleFeedRefresh } from '@/lib/rss';
+import { ensureBackgroundRefresh, fetchAllFeeds, scheduleFeedRefresh, scheduleMissingTranslations } from '@/lib/rss';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -24,7 +24,10 @@ export default async function Page({ searchParams }: PageProps) {
 
   ensureBackgroundRefresh();
   const snapshot = await fetchAllFeeds();
-  after(() => scheduleFeedRefresh());
+  after(() => {
+    scheduleFeedRefresh();
+    scheduleMissingTranslations();
+  });
 
   const initialPages = buildInitialPages(snapshot.items, snapshot.time || Date.now());
   if (query) {

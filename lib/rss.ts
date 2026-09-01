@@ -370,11 +370,31 @@ function isPrioritySource(source: FeedSource): boolean {
   );
 }
 
+let translatingAll = false;
+let translateAgain = false;
+
 async function translateAndPersist() {
   if (!cache?.items.length) return;
-  await translateTitles(cache.items.map((item) => item.title));
-  cache = { ...cache, items: cache.items.map((item) => applyTranslation(item)) };
-  await writeDiskCache(cache);
+  if (translatingAll) {
+    translateAgain = true;
+    return;
+  }
+  translatingAll = true;
+  try {
+    do {
+      translateAgain = false;
+      await translateTitles(cache.items.map((item) => item.title));
+      cache = { ...cache, items: cache.items.map((item) => applyTranslation(item)) };
+      await writeDiskCache(cache);
+    } while (translateAgain && cache.items.length);
+  } finally {
+    translatingAll = false;
+  }
+}
+
+export function scheduleMissingTranslations() {
+  if (!cache?.items.length) return;
+  void translateAndPersist();
 }
 
 async function refreshAll(): Promise<CacheState> {

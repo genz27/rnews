@@ -1,7 +1,7 @@
 import { after } from 'next/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { PAGE_SIZE } from '@/lib/feed-page';
-import { fetchAllFeeds, filterItems, pickRandomItems, scheduleFeedRefresh } from '@/lib/rss';
+import { fetchAllFeeds, filterItems, pickRandomItems, scheduleFeedRefresh, scheduleMissingTranslations } from '@/lib/rss';
 import { applyTranslation } from '@/lib/translate';
 import { FeedResponse } from '@/lib/types';
 import { attachRateLimitHeaders, rateLimit } from '@/lib/rate-limit';
@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
       .filter(Boolean);
 
     const snapshot = await fetchAllFeeds();
-    after(() => scheduleFeedRefresh(force));
+    after(() => {
+      scheduleFeedRefresh(force);
+      scheduleMissingTranslations();
+    });
     const pool = filterItems(snapshot.items, category, query);
     const recommend = category === '推荐' && !query;
 
@@ -56,7 +59,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Cache-Control': recommend
           ? 'no-store'
-          : 'public, max-age=120, s-maxage=300, stale-while-revalidate=1800',
+          : 'public, max-age=15, s-maxage=30, stale-while-revalidate=1800',
       },
     });
     return attachRateLimitHeaders(json, request, { limit: RATE_LIMIT, name: 'site' });

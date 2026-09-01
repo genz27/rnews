@@ -4,15 +4,14 @@ import path from 'path';
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
-const BATCH_SIZE = 40;
-const BATCH_CONCURRENCY = 8;
+const BATCH_SIZE = 32;
+const BATCH_CONCURRENCY = process.env.VERCEL ? 3 : 6;
 
 type TranslationMap = Record<string, string>;
 
 let map: TranslationMap = {};
 let loaded = false;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
-let translatingAll = false;
 let translationSink: (() => void) | null = null;
 const inflightTitles = new Set<string>();
 
@@ -65,9 +64,9 @@ export function isEnglishTitle(title: string): boolean {
   if (!text) return false;
   const cjk = (text.match(/[\u4e00-\u9fff]/g) || []).length;
   const letters = (text.match(/[A-Za-z]/g) || []).length;
+  if (cjk >= 2) return false;
   if (letters < 8) return false;
-  if (cjk >= 2 && cjk * 2 >= letters) return false;
-  return letters > cjk * 2;
+  return true;
 }
 
 function parseBatchResponse(data: unknown, count: number): string[] {
@@ -81,24 +80,36 @@ function parseBatchResponse(data: unknown, count: number): string[] {
 
 async function translateBatch(titles: string[]): Promise<string[]> {
   const body = titles.map((title) => `q=${encodeURIComponent(title)}`).join('&');
-  const response = await fetch(
-    'https://translate.googleapis.com/translate_a/t?client=gtx&sl=auto&tl=zh-CN',
-    {
-      method: 'POST',
-      headers: {
-        'User-Agent': USER_AGENT,
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json',
-      },
-      body,
-      signal: AbortSignal.timeout(20000),
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(
+        'https://translate.googleapis.com/translate_a/t?client=gtx&sl=auto&tl=zh-CN',
+        {
+          method: 'POST',
+          headers: {
+            'User-Agent': USER_AGENT,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Accept: 'application/json',
+          },
+          body,
+          signal: AbortSignal.timeout(20000),
+        }
+      );
+      if (response.status === 429 || response.status >= 500) {
+        throw new Error(`translate HTTP ${response.status}`);
+      }
+      if (!response.ok) {
+        throw new Error(`translate HTTP ${response.status}`);
+      }
+      const data = (await response.json()) as unknown;
+      return parseBatchResponse(data, titles.length);
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
     }
-  );
-  if (!response.ok) {
-    throw new Error(`translate HTTP ${response.status}`);
   }
-  const data = (await response.json()) as unknown;
-  return parseBatchResponse(data, titles.length);
+  throw lastError instanceof Error ? lastError : new Error('translate failed');
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -147,17 +158,13 @@ export async function translateTitles(titles: string[]): Promise<void> {
   }
 }
 
-export function applyTranslation<T extends { title: string; titleZh?: string }>(item: T): T {
-  if (item.titleZh) return item;
-  const translated = map[item.title];
-  if (!translated) return item;
-  return { ...item, titleZh: translated };
+export function lookupTranslation(title: string): string | undefined {
+  return map[title] || map[title.trim()];
 }
 
-export function startBackgroundTranslation(titles: string[]) {
-  if (translatingAll) return;
-  translatingAll = true;
-  void translateTitles(titles).finally(() => {
-    translatingAll = false;
-  });
+export function applyTranslation<T extends { title: string; titleZh?: string }>(item: T): T {
+  if (item.titleZh && item.titleZh !== item.title) return item;
+  const translated = lookupTranslation(item.title);
+  if (!translated || translated === item.title) return item;
+  return { ...item, titleZh: translated };
 }
