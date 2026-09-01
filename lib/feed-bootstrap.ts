@@ -25,7 +25,9 @@ export function compactFeedPages(
       const existing = itemIndexes.get(identity);
       if (existing !== undefined) return existing;
       const index = items.length;
-      items.push(item);
+      const listItem = { ...item };
+      delete listItem.snippet;
+      items.push(listItem);
       itemIndexes.set(identity, index);
       return index;
     });
