@@ -3,7 +3,7 @@ import { ensureBackgroundRefresh, fetchAllFeeds, filterItems, pickRandomItems } 
 import { hydrateTranslations } from '@/lib/translate';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 const PAGE_SIZE = 40;
 

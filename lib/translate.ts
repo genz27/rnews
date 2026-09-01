@@ -15,8 +15,8 @@ let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let translatingAll = false;
 
 function storePath() {
-  if (process.env.VERCEL) return path.join('/tmp', 'rss-translations.json');
-  return path.join(process.cwd(), '.data', 'rss-translations.json');
+  if (process.env.VERCEL) return '/tmp/rss-translations.json';
+  return path.join(process.cwd(), `.${'data'}`, 'rss-translations.json');
 }
 
 async function loadMap() {
