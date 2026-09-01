@@ -1,11 +1,11 @@
 import { after } from 'next/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { PAGE_SIZE } from '@/lib/feed-page';
 import { fetchAllFeeds, filterItems, pickRandomItems, scheduleFeedRefresh } from '@/lib/rss';
 import { applyTranslation } from '@/lib/translate';
 import { FeedResponse } from '@/lib/types';
 import { attachRateLimitHeaders, rateLimit } from '@/lib/rate-limit';
 
-const ITEMS_PER_PAGE = 40;
 const RATE_LIMIT = 120;
 
 export const dynamic = 'force-dynamic';
@@ -34,15 +34,15 @@ export async function GET(request: NextRequest) {
     const recommend = category === '推荐' && !query;
 
     const page = recommend
-      ? pickRandomItems(pool, ITEMS_PER_PAGE, seed, exclude)
-      : pool.slice(cursor, cursor + ITEMS_PER_PAGE);
+      ? pickRandomItems(pool, PAGE_SIZE, seed, exclude)
+      : pool.slice(cursor, cursor + PAGE_SIZE);
     const paginatedItems = page.map((item) => applyTranslation(item));
-    const hasMore = recommend ? pool.length > 0 : cursor + ITEMS_PER_PAGE < pool.length;
+    const hasMore = recommend ? pool.length > 0 : cursor + PAGE_SIZE < pool.length;
 
     const response: FeedResponse = {
       items: paginatedItems,
       hasMore,
-      nextCursor: recommend ? cursor + paginatedItems.length : hasMore ? cursor + ITEMS_PER_PAGE : undefined,
+      nextCursor: recommend ? cursor + paginatedItems.length : hasMore ? cursor + PAGE_SIZE : undefined,
       total: pool.length,
       stats: {
         sources: snapshot.sources,
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Cache-Control': recommend
           ? 'no-store'
-          : 'public, max-age=30, s-maxage=60, stale-while-revalidate=600',
+          : 'public, max-age=120, s-maxage=300, stale-while-revalidate=1800',
       },
     });
     return attachRateLimitHeaders(json, request, { limit: RATE_LIMIT, name: 'site' });

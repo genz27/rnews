@@ -1,13 +1,13 @@
 import { after } from 'next/server';
+import { cookies } from 'next/headers';
 import { HomeView } from '@/components/HomeView';
+import { CATEGORY_COOKIE, readCategoryCookie } from '@/lib/category-pref';
 import { getCatalogCategories } from '@/lib/catalog';
-import { ensureBackgroundRefresh, fetchAllFeeds, filterItems, pickRandomItems, scheduleFeedRefresh } from '@/lib/rss';
-import { applyTranslation } from '@/lib/translate';
+import { buildInitialPages, buildPage, pageKey } from '@/lib/feed-page';
+import { ensureBackgroundRefresh, fetchAllFeeds, scheduleFeedRefresh } from '@/lib/rss';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
-
-const PAGE_SIZE = 40;
 
 type PageProps = {
   searchParams: Promise<{ c?: string; q?: string }>;
@@ -16,25 +16,37 @@ type PageProps = {
 export default async function Page({ searchParams }: PageProps) {
   const params = await searchParams;
   const categories = getCatalogCategories();
-  const category = categories.includes(params.c || '') ? (params.c as string) : '推荐';
+  const cookieStore = await cookies();
+  const fromUrl = categories.includes(params.c || '') ? (params.c as string) : '';
+  const fromCookie = readCategoryCookie(cookieStore.get(CATEGORY_COOKIE)?.value, categories);
+  const category = fromUrl || fromCookie || '推荐';
   const query = (params.q || '').trim();
 
   ensureBackgroundRefresh();
   const snapshot = await fetchAllFeeds();
   after(() => scheduleFeedRefresh());
-  const pool = filterItems(snapshot.items, category, query);
-  const firstPage =
-    category === '推荐' && !query
-      ? pickRandomItems(pool, PAGE_SIZE, Date.now())
-      : pool.slice(0, PAGE_SIZE);
-  const translated = firstPage.map((item) => applyTranslation(item));
-  const hasMore = category === '推荐' && !query ? pool.length > 0 : pool.length > PAGE_SIZE;
+
+  const initialPages = buildInitialPages(snapshot.items, snapshot.time || Date.now());
+  if (query) {
+    initialPages[pageKey(category, query)] = buildPage(snapshot.items, category, query);
+  }
+
+  const active =
+    initialPages[pageKey(category, query)] ||
+    initialPages[pageKey(category)] ||
+    initialPages[pageKey('推荐')] || {
+      items: [],
+      hasMore: false,
+      total: 0,
+      cursor: 0,
+    };
 
   return (
     <HomeView
-      initialItems={translated}
-      initialTotal={pool.length}
-      initialHasMore={hasMore}
+      initialPages={initialPages}
+      initialItems={active.items}
+      initialTotal={active.total}
+      initialHasMore={active.hasMore}
       initialCategory={category}
       initialQuery={query}
       initialStats={{

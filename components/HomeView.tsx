@@ -8,14 +8,14 @@ import { SearchBar } from '@/components/SearchBar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Feed } from '@/components/Feed';
 import { Toast } from '@/components/Toast';
+import { persistCategory } from '@/lib/category-pref';
 import { getCatalogCategories } from '@/lib/catalog';
 import { formatUpdatedAt } from '@/lib/time';
-import { FeedItem, FeedResponse } from '@/lib/types';
-import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
-
-const CATEGORY_KEY = 'rnews-category';
+import { FeedItem, FeedResponse, InitialFeedPage } from '@/lib/types';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface HomeViewProps {
+  initialPages?: Record<string, InitialFeedPage>;
   initialItems: FeedItem[];
   initialTotal: number;
   initialHasMore: boolean;
@@ -26,6 +26,7 @@ interface HomeViewProps {
 }
 
 export function HomeView({
+  initialPages,
   initialItems,
   initialTotal,
   initialHasMore,
@@ -34,7 +35,7 @@ export function HomeView({
   initialStats,
   initialCachedAt,
 }: HomeViewProps) {
-  const [categories, setCategories] = useState<string[]>(getCatalogCategories());
+  const categories = getCatalogCategories();
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -45,6 +46,10 @@ export function HomeView({
   const [now, setNow] = useState(() => Date.now());
   const searchRef = useRef<HTMLInputElement>(null);
   const prefetchRef = useRef<(category: string) => void>(() => undefined);
+  const selectedRef = useRef(selectedCategory);
+  selectedRef.current = selectedCategory;
+  const queryRef = useRef(searchQuery);
+  queryRef.current = searchQuery;
 
   const handleRegisterPrefetch = useCallback((prefetch: (category: string) => void) => {
     prefetchRef.current = prefetch;
@@ -52,31 +57,6 @@ export function HomeView({
 
   const handlePrefetch = useCallback((category: string) => {
     prefetchRef.current(category);
-  }, []);
-
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 30000);
-    return () => window.clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/categories')
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.categories) && data.categories.length > 0) {
-          setCategories(data.categories);
-        }
-      })
-      .catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
-    if (initialCategory !== '推荐') return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('c') || params.get('q')) return;
-    const saved = window.localStorage.getItem(CATEGORY_KEY);
-    if (saved && saved !== selectedCategory) setSelectedCategory(saved);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const writeUrl = useCallback((category: string, query: string, push: boolean) => {
@@ -87,6 +67,16 @@ export function HomeView({
     const state = { c: category, q: query };
     if (push) window.history.pushState(state, '', next);
     else window.history.replaceState(state, '', next);
+  }, []);
+
+  useEffect(() => {
+    persistCategory(initialCategory);
+    writeUrl(initialCategory, initialQuery, false);
+  }, [initialCategory, initialQuery, writeUrl]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 30000);
+    return () => window.clearInterval(id);
   }, []);
 
   const handleBusy = useCallback((next: boolean) => {
@@ -106,13 +96,12 @@ export function HomeView({
   );
 
   const handleSelectCategory = useCallback(
-    (category: string, push = true) => {
-      window.localStorage.setItem(CATEGORY_KEY, category);
-      writeUrl(category, '', push);
-      startTransition(() => {
-        setSelectedCategory(category);
-        setSearchQuery('');
-      });
+    (next: string, push = true) => {
+      if (next === selectedRef.current && !queryRef.current) return;
+      persistCategory(next);
+      writeUrl(next, '', push);
+      setSelectedCategory(next);
+      setSearchQuery('');
     },
     [writeUrl]
   );
@@ -315,6 +304,7 @@ export function HomeView({
             category={selectedCategory}
             searchQuery={searchQuery}
             refreshKey={refreshKey}
+            initialPages={initialPages}
             initialItems={initialItems}
             initialTotal={initialTotal}
             initialHasMore={initialHasMore}
@@ -324,7 +314,7 @@ export function HomeView({
             onRefreshed={handleRefreshed}
             onCachedAt={setCachedAt}
             onSource={handleSource}
-            onCategory={(category) => handleSelectCategory(category)}
+            onCategory={handleSelectCategory}
             onPrefetch={handleRegisterPrefetch}
           />
         </main>

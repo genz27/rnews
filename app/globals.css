@@ -20,7 +20,8 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
+  overflow-anchor: none;
 }
 
 body {
@@ -98,6 +99,14 @@ body {
 
 .animate-in {
   animation: fade-up 0.4s ease both;
+}
+
+.feed-pane[hidden] {
+  display: none !important;
+}
+
+.feed-pane {
+  contain: content;
 }
 
 .feed-row {

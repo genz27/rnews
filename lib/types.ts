@@ -22,6 +22,13 @@ export interface FeedResponse {
   cachedAt?: number;
 }
 
+export interface InitialFeedPage {
+  items: FeedItem[];
+  hasMore: boolean;
+  total: number;
+  cursor: number;
+}
+
 export interface FeedSource {
   url: string;
   title: string;

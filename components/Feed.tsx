@@ -1,15 +1,17 @@
 'use client';
 
 import { getCatalogCategories } from '@/lib/catalog';
-import { FeedItem, FeedResponse } from '@/lib/types';
+import { pageKey } from '@/lib/feed-key';
+import { FeedItem, FeedResponse, InitialFeedPage } from '@/lib/types';
 import { FeedRow, FeedRowSkeleton } from './FeedCard';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 
 interface FeedProps {
   category: string;
   searchQuery: string;
   refreshKey: number;
+  initialPages?: Record<string, InitialFeedPage>;
   initialItems?: FeedItem[];
   initialTotal?: number;
   initialHasMore?: boolean;
@@ -35,26 +37,123 @@ type CachedPage = {
   enterFrom: number;
 };
 
-function pageKey(category: string, query: string) {
-  return query ? `q:${category}:${query}` : `c:${category}`;
-}
-
-function toPage(data: FeedResponse, items: FeedItem[], cursor: number, enterFrom: number): CachedPage {
+function toCached(
+  page: InitialFeedPage,
+  stats?: FeedResponse['stats'],
+  cachedAt?: number
+): CachedPage {
   return {
-    items,
-    hasMore: Boolean(data.hasMore),
-    total: data.total ?? 0,
-    stats: data.stats,
-    cachedAt: data.cachedAt,
-    cursor,
-    enterFrom,
+    items: page.items,
+    hasMore: page.hasMore,
+    total: page.total,
+    stats,
+    cachedAt,
+    cursor: page.cursor,
+    enterFrom: page.items.length,
   };
 }
+
+function bootState(
+  initialPages: Record<string, InitialFeedPage> | undefined,
+  initialItems: FeedItem[],
+  initialTotal: number,
+  initialHasMore: boolean,
+  initialStats: FeedResponse['stats'] | undefined,
+  initialCachedAt: number | undefined,
+  bootKey: string
+): Record<string, CachedPage> {
+  const next: Record<string, CachedPage> = {};
+  if (initialPages) {
+    for (const [key, page] of Object.entries(initialPages)) {
+      next[key] = toCached(page, initialStats, initialCachedAt);
+    }
+  }
+  if (!next[bootKey] && initialItems.length > 0) {
+    next[bootKey] = {
+      items: initialItems,
+      hasMore: initialHasMore,
+      total: initialTotal,
+      stats: initialStats,
+      cachedAt: initialCachedAt,
+      cursor: initialItems.length,
+      enterFrom: initialItems.length,
+    };
+  }
+  return next;
+}
+
+const FeedPane = memo(function FeedPane({
+  pageKeyName,
+  page,
+  active,
+  searchQuery,
+  recommend,
+  loadingMore,
+  error,
+  onSource,
+  onCategory,
+  sentinelRef,
+}: {
+  pageKeyName: string;
+  page: CachedPage;
+  active: boolean;
+  searchQuery: string;
+  recommend: boolean;
+  loadingMore: boolean;
+  error: string | null;
+  onSource?: (source: string) => void;
+  onCategory?: (category: string) => void;
+  sentinelRef: (node?: Element | null) => void;
+}) {
+  return (
+    <section className="feed-pane" hidden={!active} aria-hidden={!active}>
+      <p className="mb-3 text-[13px] text-zinc-500">
+        {searchQuery && active
+          ? `找到 ${page.total} 条 · 「${searchQuery}」`
+          : pageKeyName === 'c:推荐'
+            ? `今日 ${page.total} 条 · 下滑或点刷新换一批`
+            : `${page.items.length}/${page.total}`}
+        {page.stats?.ok ? ` · ${page.stats.ok}/${page.stats.sources} 源` : ''}
+      </p>
+      <div>
+        {page.items.map((item, index) => (
+          <FeedRow
+            key={`${item.id}-${index}`}
+            item={item}
+            enter={false}
+            query={active ? searchQuery : ''}
+            onSource={onSource}
+            onCategory={onCategory}
+          />
+        ))}
+      </div>
+      {active ? (
+        <div ref={sentinelRef} className="flex justify-center py-8">
+          {loadingMore && (
+            <span className="loading-dots flex items-center gap-1.5 text-xs text-zinc-500">
+              <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
+              <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
+              <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
+              <span className="ml-2">{recommend ? '换一批' : '加载更多'}</span>
+            </span>
+          )}
+          {!page.hasMore && page.items.length > 0 && !recommend && (
+            <span className="text-xs text-zinc-600">已经到底了</span>
+          )}
+          {error && page.items.length > 0 ? <span className="text-xs text-zinc-500">{error}</span> : null}
+        </div>
+      ) : (
+        <div className="h-8" />
+      )}
+    </section>
+  );
+});
 
 export function Feed({
   category,
   searchQuery,
   refreshKey,
+  initialPages,
   initialItems = [],
   initialTotal = 0,
   initialHasMore = false,
@@ -68,22 +167,8 @@ export function Feed({
   onPrefetch,
 }: FeedProps) {
   const bootKey = pageKey(category, searchQuery);
-  const [pages, setPages] = useState<Record<string, CachedPage>>(() => {
-    if (initialItems.length === 0) return {};
-    return {
-      [bootKey]: {
-        items: initialItems,
-        hasMore: initialHasMore,
-        total: initialTotal,
-        stats: initialStats,
-        cachedAt: initialCachedAt,
-        cursor: initialItems.length,
-        enterFrom: initialItems.length,
-      },
-    };
-  });
-  const [loadingKey, setLoadingKey] = useState<string | null>(
-    initialItems.length > 0 ? null : bootKey
+  const [pages, setPages] = useState<Record<string, CachedPage>>(() =>
+    bootState(initialPages, initialItems, initialTotal, initialHasMore, initialStats, initialCachedAt, bootKey)
   );
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +179,8 @@ export function Feed({
   const inflightRef = useRef(new Set<string>());
   const requestIdRef = useRef(0);
   const prevRefreshRef = useRef(refreshKey);
+  const scrollMapRef = useRef<Record<string, number>>({});
+  const paintedKeyRef = useRef(bootKey);
   const onRefreshedRef = useRef(onRefreshed);
   onRefreshedRef.current = onRefreshed;
   const onCachedAtRef = useRef(onCachedAt);
@@ -103,10 +190,6 @@ export function Feed({
   const activeKey = pageKey(category, searchQuery);
   const recommend = category === '推荐' && !searchQuery;
   const activePage = pages[activeKey];
-
-  const paintedKeyRef = useRef(activePage ? activeKey : '');
-  if (activePage) paintedKeyRef.current = activeKey;
-  const paintedKey = activePage ? activeKey : paintedKeyRef.current;
 
   const putPage = useCallback((key: string, page: CachedPage) => {
     setPages((prev) => {
@@ -152,9 +235,7 @@ export function Feed({
       if (mode === 'prefetch' && pagesRef.current[key]?.items.length) return;
 
       const requestId = mode === 'prefetch' ? requestIdRef.current : ++requestIdRef.current;
-
       inflightRef.current.add(inflightKey);
-      if (mode === 'reset' && !pagesRef.current[key]) setLoadingKey(key);
       if (mode === 'reset' && forceRefresh) setRefreshing(true);
       if (mode === 'append') setLoadingMore(true);
       if (mode !== 'prefetch') setError(null);
@@ -170,15 +251,25 @@ export function Feed({
           const seen = new Set(existing.items.map((item) => item.id));
           const unique = nextItems.filter((item) => !seen.has(item.id));
           const merged = unique.length === 0 ? [...existing.items, ...nextItems] : [...existing.items, ...unique];
-          putPage(
-            key,
-            toPage(data, merged, data.nextCursor ?? cursor + nextItems.length, existing.items.length)
-          );
+          putPage(key, {
+            items: merged,
+            hasMore: Boolean(data.hasMore),
+            total: data.total ?? 0,
+            stats: data.stats,
+            cachedAt: data.cachedAt,
+            cursor: data.nextCursor ?? cursor + nextItems.length,
+            enterFrom: merged.length,
+          });
         } else if (!pagesRef.current[key] || mode === 'reset') {
-          putPage(
-            key,
-            toPage(data, nextItems, data.nextCursor ?? nextItems.length, nextItems.length)
-          );
+          putPage(key, {
+            items: nextItems,
+            hasMore: Boolean(data.hasMore),
+            total: data.total ?? 0,
+            stats: data.stats,
+            cachedAt: data.cachedAt,
+            cursor: data.nextCursor ?? nextItems.length,
+            enterFrom: nextItems.length,
+          });
         }
         if (mode === 'reset' && forceRefresh) onRefreshedRef.current?.();
         if (key === pageKey(nextCategory, query)) onCachedAtRef.current?.(data.cachedAt);
@@ -189,12 +280,8 @@ export function Feed({
       } finally {
         inflightRef.current.delete(inflightKey);
         if (mode !== 'prefetch' && requestIdRef.current === requestId) {
-          setLoadingKey((current) => (current === key ? null : current));
           setLoadingMore(false);
           setRefreshing(false);
-        }
-        if (mode === 'prefetch') {
-          setLoadingKey((current) => (current === key ? null : current));
         }
       }
     },
@@ -212,6 +299,15 @@ export function Feed({
     onPrefetch?.(prefetch);
   }, [onPrefetch, prefetch]);
 
+  useLayoutEffect(() => {
+    const prev = paintedKeyRef.current;
+    if (prev === activeKey) return;
+    scrollMapRef.current[prev] = window.scrollY;
+    paintedKeyRef.current = activeKey;
+    const top = scrollMapRef.current[activeKey] ?? 0;
+    window.scrollTo({ top, left: 0, behavior: 'instant' });
+  }, [activeKey]);
+
   useEffect(() => {
     const refreshChanged = prevRefreshRef.current !== refreshKey;
     prevRefreshRef.current = refreshKey;
@@ -219,6 +315,7 @@ export function Feed({
       inflightRef.current.clear();
       pagesRef.current = {};
       setPages({});
+      scrollMapRef.current = {};
     }
 
     const key = pageKey(category, searchQuery);
@@ -230,10 +327,10 @@ export function Feed({
   }, [category, loadPage, refreshKey, searchQuery]);
 
   useEffect(() => {
-    if (inView && activePage?.hasMore && !loadingMore && !refreshing && !loadingKey && activePage.items.length > 0) {
+    if (inView && activePage?.hasMore && !loadingMore && !refreshing && activePage.items.length > 0) {
       void loadPage(category, searchQuery, 'append');
     }
-  }, [activePage, category, inView, loadPage, loadingKey, loadingMore, refreshing, searchQuery]);
+  }, [activePage, category, inView, loadPage, loadingMore, refreshing, searchQuery]);
 
   useEffect(() => {
     const run = () => {
@@ -253,7 +350,7 @@ export function Feed({
 
   if (error && Object.keys(pages).length === 0) {
     return (
-      <div className="animate-in py-16 text-center">
+      <div className="py-16 text-center">
         <p className="text-sm text-zinc-500">{error}</p>
         <button
           onClick={() => void loadPage(category, searchQuery, 'reset')}
@@ -265,72 +362,36 @@ export function Feed({
     );
   }
 
-  const showSkeleton = !activePage && !paintedKey;
-  const keys = Object.keys(pages);
+  if (!activePage) {
+    return (
+      <div>
+        <p className="mb-2 text-xs text-zinc-500">正在读取订阅缓存…</p>
+        {Array.from({ length: 8 }).map((_, index) => (
+          <FeedRowSkeleton key={index} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div>
-      {showSkeleton ? (
-        <div className="animate-in">
-          <p className="mb-2 text-xs text-zinc-500">正在读取订阅缓存…</p>
-          {Array.from({ length: 10 }).map((_, index) => (
-            <FeedRowSkeleton key={index} />
-          ))}
-        </div>
-      ) : null}
-
-      {keys.map((key) => {
-        const page = pages[key];
-        const active = key === paintedKey && Boolean(pages[paintedKey]);
-        return (
-          <section key={key} hidden={!active} aria-hidden={!active}>
-            <p className="mb-3 text-[13px] text-zinc-500">
-              {searchQuery && active
-                ? `找到 ${page.total} 条 · 「${searchQuery}」`
-                : key === 'c:推荐'
-                  ? `今日 ${page.total} 条 · 下滑或点刷新换一批`
-                  : `${page.items.length}/${page.total}`}
-              {page.stats?.ok ? ` · ${page.stats.ok}/${page.stats.sources} 源` : ''}
-            </p>
-            <div>
-              {page.items.map((item, index) => (
-                <FeedRow
-                  key={`${item.id}-${index}`}
-                  item={item}
-                  enter={active && index >= page.enterFrom}
-                  delay={Math.min(Math.max(index - page.enterFrom, 0), 12) * 32}
-                  query={active ? searchQuery : ''}
-                  onSource={onSource}
-                  onCategory={onCategory}
-                />
-              ))}
-            </div>
-            {active ? (
-              <div ref={ref} className="flex justify-center py-8">
-                {loadingMore && (
-                  <span className="loading-dots flex items-center gap-1.5 text-xs text-zinc-500">
-                    <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
-                    <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
-                    <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
-                    <span className="ml-2">{recommend ? '换一批' : '加载更多'}</span>
-                  </span>
-                )}
-                {!page.hasMore && page.items.length > 0 && !recommend && (
-                  <span className="animate-in text-xs text-zinc-600">已经到底了</span>
-                )}
-                {error && page.items.length > 0 ? (
-                  <span className="text-xs text-zinc-500">{error}</span>
-                ) : null}
-              </div>
-            ) : (
-              <div className="h-8" />
-            )}
-          </section>
-        );
-      })}
-
-      {!showSkeleton && activePage && activePage.items.length === 0 ? (
-        <p className="animate-in py-16 text-center text-sm text-zinc-500">
+      {Object.entries(pages).map(([key, page]) => (
+        <FeedPane
+          key={key}
+          pageKeyName={key}
+          page={page}
+          active={key === activeKey}
+          searchQuery={searchQuery}
+          recommend={recommend}
+          loadingMore={key === activeKey && loadingMore}
+          error={key === activeKey ? error : null}
+          onSource={onSource}
+          onCategory={onCategory}
+          sentinelRef={ref}
+        />
+      ))}
+      {activePage.items.length === 0 ? (
+        <p className="py-16 text-center text-sm text-zinc-500">
           {searchQuery
             ? `没有找到「${searchQuery}」，试试别的关键词，或点来源名称筛选。`
             : recommend
