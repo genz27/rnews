@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchAllFeeds } from '@/lib/rss';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -12,6 +13,9 @@ export async function GET(request: NextRequest) {
     if (header !== `Bearer ${secret}` && query !== secret) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
+  } else {
+    const blocked = rateLimit(request, { limit: 6, name: 'refresh' });
+    if (blocked) return blocked;
   }
 
   const snapshot = await fetchAllFeeds({ force: true });

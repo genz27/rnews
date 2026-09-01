@@ -78,3 +78,12 @@ npx vercel --prod
 内置 OPML 约 98 条，再加主机/VPS 增补。分类收成五组：社区、AI、资讯、工程、主机。
 
 首页「推荐」不是固定列表：点刷新或滑到尽头都会从今日内容里再抽一批，类似刷视频。
+
+## 公开 API
+
+文档页：`/docs`
+
+- `GET /api/v1/feed` JSON 聚合
+- `GET /api/v1/rss` RSS 2.0
+- `GET /api/v1/categories` 分类
+- 公开接口每个 IP 每分钟 60 次；超限返回 429

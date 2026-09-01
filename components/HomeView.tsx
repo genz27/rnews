@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { BackToTop } from '@/components/BackToTop';
 import { CategoryChips } from '@/components/CategoryChips';
+import { SideNav } from '@/components/SideNav';
 import { SearchBar } from '@/components/SearchBar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Feed } from '@/components/Feed';
@@ -228,7 +230,7 @@ export function HomeView({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
               <h1 className="text-xl font-semibold tracking-tight text-zinc-900 lg:text-2xl dark:text-zinc-50">
-                Rnews
+                <a href="/">Rnews</a>
               </h1>
               <p className="mt-1 text-sm leading-6 text-zinc-500">
                 聚合技术社区、AI、科技媒体与主机资讯。
@@ -263,26 +265,23 @@ export function HomeView({
               selected={selectedCategory}
               onSelect={handleSelectCategory}
             />
+            <Link
+              href="/docs"
+              className="mt-3 inline-block text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+            >
+              文档
+            </Link>
           </div>
         </div>
       </header>
 
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-6 lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:gap-16 lg:px-8 lg:py-10">
         <aside className="hidden lg:block">
-          <div className="sticky top-28">
-            <p className="mb-3 px-3 text-xs tracking-wide text-zinc-400">分类</p>
-            <CategoryChips
-              layout="stack"
-              categories={categories}
-              selected={selectedCategory}
-              onSelect={handleSelectCategory}
-            />
-            <p className="mt-8 px-3 text-[11px] leading-5 text-zinc-400">
-              R 刷新 · / 搜索 · J K 浏览
-              <br />
-              [ ] 分类 · ? 快捷键
-            </p>
-          </div>
+          <SideNav
+            categories={categories}
+            selected={selectedCategory}
+            onSelect={handleSelectCategory}
+          />
         </aside>
         <main id="feed" className="min-w-0">
           <Feed

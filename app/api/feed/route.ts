@@ -2,14 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchAllFeeds, filterItems, pickRandomItems } from '@/lib/rss';
 import { hydrateTranslations } from '@/lib/translate';
 import { FeedResponse } from '@/lib/types';
+import { attachRateLimitHeaders, rateLimit } from '@/lib/rate-limit';
 
 const ITEMS_PER_PAGE = 40;
+const RATE_LIMIT = 120;
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
+  const blocked = rateLimit(request, { limit: RATE_LIMIT, name: 'site' });
+  if (blocked) return blocked;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const cursor = Math.max(0, parseInt(searchParams.get('cursor') || '0', 10) || 0);
@@ -45,13 +50,14 @@ export async function GET(request: NextRequest) {
       cachedAt: snapshot.time,
     };
 
-    return NextResponse.json(response, {
+    const json = NextResponse.json(response, {
       headers: {
         'Cache-Control': recommend
           ? 'no-store'
           : 'public, s-maxage=60, stale-while-revalidate=600',
       },
     });
+    return attachRateLimitHeaders(json, request, { limit: RATE_LIMIT, name: 'site' });
   } catch (error) {
     console.error('Error in feed API:', error);
     return NextResponse.json(
