@@ -38,7 +38,7 @@ let diskLoaded = false;
 
 function cacheFilePath() {
   if (process.env.RSS_CACHE_PATH) return process.env.RSS_CACHE_PATH;
-  if (process.env.VERCEL) return path.join('/tmp', 'rss-cache.json');
+  if (process.env.VERCEL) return '/tmp/rss-cache.json';
   return path.join(process.cwd(), '.data', 'rss-cache.json');
 }
 

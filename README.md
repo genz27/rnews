@@ -50,7 +50,12 @@ VPS 可用 crontab，例如每 20 分钟：
 
 ## 部署到 Vercel
 
-项目已带 `vercel.json`（Hobby 每天 UTC 4:00 调一次 `/api/refresh`）。
+项目已带 `vercel.json`，可直接导入。
+
+认领到自己的账号后，在 Vercel 项目 Settings → Cron Jobs 加上：
+
+- Hobby：`0 4 * * *`（每天一次，UTC 4:00）访问 `/api/refresh`
+- Pro：`*/20 * * * *`（每 20 分钟）
 
 **方式一：Git 导入（推荐，长期用）**
 
