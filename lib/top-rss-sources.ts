@@ -1,11 +1,14 @@
 import type { FeedSource } from './types';
 
-// Curated technical and technology feeds from:
-// https://github.com/weekend-project-space/top-rss-list
-// The upstream list also contains lifestyle, entertainment, inactive HTTP
-// endpoints, and duplicate mirrors; those are intentionally not imported.
+// Technical feeds from https://github.com/weekend-project-space/top-rss-list
+// Upstream is a popularity ranking (~340 Chinese rows) that also includes
+// politics, lifestyle, entertainment, adult, Telegram, and dead endpoints.
+// This file keeps tech / product / developer sources that actually fetch.
 export const TOP_RSS_SOURCES: FeedSource[] = [
+  // 社区
   { title: 'V2EX 全站', url: 'https://v2ex.com/index.xml', category: '社区' },
+  { title: '知乎日报', url: 'https://plink.anyfeeder.com/zhihu/daily', category: '社区' },
+  { title: '少数派 Matrix', url: 'https://plink.anyfeeder.com/ssapi/matrix', category: '社区' },
   { title: '胡涂说', url: 'https://hutusi.com/feed.xml', category: '社区' },
   { title: "oldj's blog", url: 'https://oldj.net/feed', category: '社区' },
   { title: "Randy's Blog", url: 'https://lutaonan.com/rss.xml', category: '社区' },
@@ -14,19 +17,88 @@ export const TOP_RSS_SOURCES: FeedSource[] = [
   { title: '卡瓦邦噶', url: 'https://www.kawabangga.com/feed', category: '社区' },
   { title: '离别歌', url: 'https://www.leavesongs.com/feed/', category: '社区' },
   { title: '潮流周刊', url: 'https://weekly.tw93.fun/rss.xml', category: '社区' },
+  { title: '太隐', url: 'https://wangyurui.com/feed.xml', category: '社区' },
+  { title: '土木坛子', url: 'https://tumutanzi.com/feed', category: '社区' },
+  { title: 'MacTalk', url: 'https://macshuo.com/?feed=rss2', category: '社区' },
+  { title: '卢昌海', url: 'https://www.changhai.org/feed.xml', category: '社区' },
+  { title: '王登科', url: 'https://greatdk.com/feed', category: '社区' },
+  { title: '轶哥博客', url: 'https://www.wyr.me/rss.xml', category: '社区' },
+  { title: 'maxOS', url: 'https://maxoxo.me/rss/', category: '社区' },
+  { title: '编程随想', url: 'https://feeds2.feedburner.com/programthink', category: '社区' },
+
+  // 资讯
   { title: '爱范儿', url: 'https://www.ifanr.com/feed', category: '资讯' },
   { title: '奇客 Solidot', url: 'https://www.solidot.org/index.rss', category: '资讯' },
   { title: '小众软件', url: 'https://www.appinn.com/feed/', category: '资讯' },
   { title: '极客公园', url: 'https://www.geekpark.net/rss', category: '资讯' },
   { title: '机核', url: 'https://www.gcores.com/rss', category: '资讯' },
   { title: 'MIT 科技评论中国热榜', url: 'https://plink.anyfeeder.com/mittrchina/hot', category: '资讯' },
+  { title: '虎嗅', url: 'https://rss.huxiu.com/', category: '资讯' },
+  { title: '36氪', url: 'https://www.36kr.com/feed', category: '资讯' },
+  { title: '异次元软件世界', url: 'https://feed.iplaysoft.com/', category: '资讯' },
+  { title: '雷峰网', url: 'https://plink.anyfeeder.com/leiphone', category: '资讯' },
+  { title: '超能网', url: 'https://plink.anyfeeder.com/expreview', category: '资讯' },
+  { title: 'Engadget', url: 'https://www.engadget.com/rss.xml', category: '资讯' },
+  { title: '钛媒体', url: 'https://www.tmtpost.com/feed', category: '资讯' },
+  { title: 'cnBeta', url: 'https://plink.anyfeeder.com/cnbeta', category: '资讯' },
+  { title: 'Readhub', url: 'https://readhub.cn/rss', category: '资讯' },
+  { title: '腾讯科技', url: 'https://plink.anyfeeder.com/weixin/qqtech', category: '资讯' },
+  { title: '阑夕', url: 'https://plink.anyfeeder.com/weixin/techread', category: '资讯' },
+  { title: '小道消息', url: 'https://plink.anyfeeder.com/weixin/WebNotes', category: '资讯' },
+  { title: 'caoz的梦呓', url: 'https://plink.anyfeeder.com/weixin/caozsay', category: '资讯' },
+  { title: '果壳科学人', url: 'https://plink.anyfeeder.com/guokr/scientific', category: '资讯' },
+  { title: '环球科学', url: 'https://plink.anyfeeder.com/weixin/ScientificAmerican', category: '资讯' },
+  { title: '科技美学', url: 'https://plink.anyfeeder.com/weixin/kejimx', category: '资讯' },
+  { title: '触乐', url: 'https://www.chuapp.com/feed', category: '资讯' },
+  { title: '游戏研究社', url: 'https://www.yystv.cn/rss/feed', category: '资讯' },
+  { title: 'Mac玩儿法', url: 'https://www.waerfa.com/feed', category: '资讯' },
+  { title: '奔跑中的奶酪', url: 'https://www.runningcheese.com/feed', category: '资讯' },
+  { title: '反斗限免', url: 'https://free.apprcn.com/feed/', category: '资讯' },
+
+  // AI
   { title: '微软研究院 AI 头条', url: 'https://plink.anyfeeder.com/weixin/MSRAsia', category: 'AI' },
   { title: '新智元', url: 'https://plink.anyfeeder.com/weixin/AI_era', category: 'AI' },
+
+  // 工程
   { title: '美团技术团队', url: 'https://tech.meituan.com/feed/', category: '工程' },
   { title: '有赞技术团队', url: 'https://tech.youzan.com/rss/', category: '工程' },
+  { title: 'HelloGitHub', url: 'https://hellogithub.com/rss', category: '工程' },
+  { title: 'InfoQ 推荐', url: 'https://plink.anyfeeder.com/infoq/recommend', category: '工程' },
+  { title: '人人都是产品经理', url: 'https://www.woshipm.com/feed', category: '工程' },
+  { title: 'DIYGod', url: 'https://diygod.me/feed', category: '工程' },
+  { title: 'web.dev', url: 'https://web.dev/feed.xml', category: '工程' },
+  { title: 'Anthony Fu', url: 'https://antfu.me/feed.xml', category: '工程' },
+  { title: 'Josh Comeau', url: 'https://www.joshwcomeau.com/rss.xml', category: '工程' },
+  { title: 'Overreacted', url: 'https://overreacted.io/rss.xml', category: '工程' },
   { title: 'Julia Evans', url: 'https://jvns.ca/atom.xml', category: '工程' },
   { title: "Xuanwo's Blog", url: 'https://xuanwo.io/index.xml', category: '工程' },
   { title: '张鑫旭', url: 'https://www.zhangxinxu.com/wordpress/feed/', category: '工程' },
   { title: '云风的 BLOG', url: 'https://blog.codingnow.com/atom.xml', category: '工程' },
   { title: 'bboysoul 的博客', url: 'https://www.bboy.app/atom.xml', category: '工程' },
+  { title: '构建我的被动收入', url: 'https://www.bmpi.dev/index.xml', category: '工程' },
+  { title: '程序员的喵', url: 'https://catcoding.me/atom.xml', category: '工程' },
+  { title: 'Draveness', url: 'https://draveness.me/feed.xml', category: '工程' },
+  { title: '独立变现 ezindie', url: 'https://www.ezindie.com/feed/rss.xml', category: '工程' },
+  { title: 'Decohack', url: 'https://www.decohack.com/feed', category: '工程' },
+  { title: '透明创业实验', url: 'https://blog.t9t.io/atom.xml', category: '工程' },
+  { title: '风雪之隅', url: 'https://www.laruence.com/feed', category: '工程' },
+  { title: 'GeekPlux', url: 'https://geekplux.com/feed.xml', category: '工程' },
+  { title: 'Halfrost', url: 'https://halfrost.com/rss/', category: '工程' },
+  { title: 'Deepzz', url: 'https://deepzz.com/feed', category: '工程' },
+  { title: '唐巧的博客', url: 'https://blog.devtang.com/atom.xml', category: '工程' },
+  { title: 'Tony Bai', url: 'https://tonybai.com/feed/', category: '工程' },
+  { title: 'elmagnifico', url: 'https://elmagnifico.tech/feed.xml', category: '工程' },
+  { title: '前端之巅', url: 'https://plink.anyfeeder.com/weixin/frontshow', category: '工程' },
+  { title: 'CSDN', url: 'https://plink.anyfeeder.com/weixin/CSDNnews', category: '工程' },
+  { title: 'phodal', url: 'https://www.phodal.com/blog/feeds/rss/', category: '工程' },
+  { title: 'ImportNew', url: 'https://plink.anyfeeder.com/weixin/importnew', category: '工程' },
+  { title: 'Tiny Projects', url: 'https://tinyprojects.dev/feed.xml', category: '工程' },
+  { title: '涛叔', url: 'https://taoshu.in/feed.xml', category: '工程' },
+  { title: '西秦公子', url: 'https://www.ixiqin.com/feed/', category: '工程' },
+  { title: '小明明', url: 'https://www.dongwm.com/atom.xml', category: '工程' },
+  { title: '小胡子哥', url: 'https://www.barretlee.com/rss2.xml', category: '工程' },
+  { title: 'DBA Notes', url: 'https://dbanotes.net/feed', category: '工程' },
+  { title: '架构师之路', url: 'https://plink.anyfeeder.com/weixin/gh_10a6b96351a9', category: '工程' },
+  { title: "Phoenix's island", url: 'https://blog.phoenixlzx.com/atom.xml', category: '工程' },
+  { title: 'MOOC', url: 'https://plink.anyfeeder.com/weixin/mooc', category: '工程' },
 ];
