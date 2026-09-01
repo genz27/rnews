@@ -36,14 +36,10 @@ let inflight: Promise<CacheState> | null = null;
 let sourceCache: { sources: FeedSource[]; time: number } | null = null;
 let diskLoaded = false;
 
-function dataDir() {
-  return path.join(process.cwd(), `.${'data'}`);
-}
-
 function cacheFilePath() {
   if (process.env.RSS_CACHE_PATH) return process.env.RSS_CACHE_PATH;
   if (process.env.VERCEL) return '/tmp/rss-cache.json';
-  return path.join(dataDir(), 'rss-cache.json');
+  return path.join(process.cwd(), '.data', 'rss-cache.json');
 }
 
 async function readDiskCache(): Promise<CacheState | null> {
@@ -64,6 +60,7 @@ async function readDiskCache(): Promise<CacheState | null> {
 }
 
 async function writeDiskCache(state: CacheState) {
+  if (process.env.NEXT_PHASE === 'phase-production-build') return;
   try {
     const file = cacheFilePath();
     await mkdir(/* turbopackIgnore: true */ path.dirname(file), { recursive: true });

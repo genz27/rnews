@@ -1,6 +1,5 @@
 export async function register() {
-  if (process.env.NEXT_RUNTIME !== 'nodejs') return;
-  if (process.env.NEXT_PHASE === 'phase-production-build') return;
-  const { warmupFeeds } = await import('@/lib/rss');
-  void warmupFeeds();
+  // RSS cache is filled on the first request / cron refresh.
+  // Importing the feed module here makes Next.js file-trace local cache files
+  // into the serverless bundle, which breaks Vercel deploys.
 }

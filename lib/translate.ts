@@ -16,7 +16,7 @@ let translatingAll = false;
 
 function storePath() {
   if (process.env.VERCEL) return '/tmp/rss-translations.json';
-  return path.join(process.cwd(), `.${'data'}`, 'rss-translations.json');
+  return path.join(process.cwd(), '.data', 'rss-translations.json');
 }
 
 async function loadMap() {
@@ -40,6 +40,7 @@ function schedulePersist() {
 }
 
 async function persistMap() {
+  if (process.env.NEXT_PHASE === 'phase-production-build') return;
   try {
     const file = storePath();
     await mkdir(/* turbopackIgnore: true */ path.dirname(file), { recursive: true });
