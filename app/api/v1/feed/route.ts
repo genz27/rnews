@@ -10,7 +10,7 @@ import {
 } from '@/lib/public-api';
 import { rateLimit, attachRateLimitHeaders } from '@/lib/rate-limit';
 import { fetchAllFeeds, filterItems } from '@/lib/rss';
-import { hydrateTranslations } from '@/lib/translate';
+import { applyTranslation } from '@/lib/translate';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       since.ms
     );
     const page = pool.slice(cursor, cursor + limit);
-    const items = await hydrateTranslations(page, { immediate: limit });
+    const items = page.map((item) => applyTranslation(item));
     const hasMore = cursor + limit < pool.length;
     const sinceIso = since.ms != null ? new Date(since.ms).toISOString() : null;
 

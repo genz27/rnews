@@ -3,7 +3,7 @@ import path from 'path';
 import Parser from 'rss-parser';
 import { parseStringPromise } from 'xml2js';
 import { mergeSources, normalizeCategory } from './catalog';
-import { applyTranslation, loadTranslations, startBackgroundTranslation } from './translate';
+import { applyTranslation, loadTranslations, setTranslationSink, translateTitles } from './translate';
 import { FeedItem, FeedSource } from './types';
 
 type ParsedItem = {
@@ -88,7 +88,11 @@ async function writeDiskCache(state: CacheState) {
   try {
     const file = cacheFilePath();
     await mkdir(/* turbopackIgnore: true */ path.dirname(file), { recursive: true });
-    await writeFile(/* turbopackIgnore: true */ file, JSON.stringify(state));
+    const toWrite = {
+      ...state,
+      items: state.items.map((item) => applyTranslation(item)),
+    };
+    await writeFile(/* turbopackIgnore: true */ file, JSON.stringify(toWrite));
   } catch (error) {
     console.warn('Failed to persist RSS cache:', error instanceof Error ? error.message : error);
   }
@@ -102,6 +106,19 @@ async function ensureDiskLoaded() {
   const fromDisk = await readDiskCache();
   if (fromDisk?.items.length) cache = fromDisk;
 }
+
+let translatedCacheTimer: ReturnType<typeof setTimeout> | null = null;
+function persistTranslatedCache() {
+  if (!cache?.items.length) return;
+  cache = { ...cache, items: cache.items.map((item) => applyTranslation(item)) };
+  if (translatedCacheTimer) return;
+  translatedCacheTimer = setTimeout(() => {
+    translatedCacheTimer = null;
+    if (cache) void writeDiskCache(cache);
+  }, 1200);
+}
+
+setTranslationSink(persistTranslatedCache);
 
 export function ensureBackgroundRefresh() {
   if (process.env.VERCEL) return;
@@ -313,10 +330,11 @@ function mergeItems(groups: FeedItem[][]): FeedItem[] {
       const key = (item.link || item.id).split('?')[0].replace(/\/+$/, '').toLowerCase();
       const existing = unique.get(key);
       if (!existing || Date.parse(item.pubDate) > Date.parse(existing.pubDate)) {
-        unique.set(
-          key,
-          !item.snippet && existing?.snippet ? { ...item, snippet: existing.snippet } : item
-        );
+        unique.set(key, {
+          ...item,
+          snippet: item.snippet || existing?.snippet,
+          titleZh: item.titleZh || existing?.titleZh,
+        });
       }
     }
   }
@@ -352,6 +370,13 @@ function isPrioritySource(source: FeedSource): boolean {
   );
 }
 
+async function translateAndPersist() {
+  if (!cache?.items.length) return;
+  await translateTitles(cache.items.map((item) => item.title));
+  cache = { ...cache, items: cache.items.map((item) => applyTranslation(item)) };
+  await writeDiskCache(cache);
+}
+
 async function refreshAll(): Promise<CacheState> {
   const sources = await getSources();
   let ok = 0;
@@ -370,51 +395,55 @@ async function refreshAll(): Promise<CacheState> {
       }
     });
 
+  const publish = async (state: CacheState) => {
+    const items = state.items.map((item) => applyTranslation(item));
+    cache = { ...state, items };
+    await writeDiskCache(cache);
+  };
+
   const priority = sources.filter(isPrioritySource);
   const rest = sources.filter((source) => !isPrioritySource(source));
 
   if (priority.length === 0) {
-    const groups = await fetchBatch(sources);
-    cache = {
-      items: mergeItems(groups),
+    await publish({
+      items: mergeItems(await fetchBatch(sources)),
       time: Date.now(),
       ok,
       failed,
       sources: sources.length,
       partial: false,
-    };
-    await writeDiskCache(cache);
-    return cache;
+    });
+    await translateAndPersist();
+    return cache!;
   }
 
-  const firstGroups = await fetchBatch(priority);
-  cache = {
-    items: mergeItems(firstGroups),
+  await publish({
+    items: mergeItems(await fetchBatch(priority)),
     time: Date.now(),
     ok,
     failed,
     sources: sources.length,
     partial: rest.length > 0,
-  };
-  await writeDiskCache(cache);
+  });
+  void translateAndPersist();
 
   if (rest.length === 0) {
-    cache.partial = false;
-    return cache;
+    if (cache) cache.partial = false;
+    await translateAndPersist();
+    return cache!;
   }
 
-  const restGroups = await fetchBatch(rest);
-  const state: CacheState = {
-    items: mergeItems([...firstGroups, ...restGroups]),
+  const firstItems = cache?.items ?? [];
+  await publish({
+    items: mergeItems([firstItems, ...(await fetchBatch(rest))]),
     time: Date.now(),
     ok,
     failed,
     sources: sources.length,
     partial: false,
-  };
-  cache = state;
-  await writeDiskCache(state);
-  return state;
+  });
+  await translateAndPersist();
+  return cache!;
 }
 
 function stampTranslations(state: CacheState): CacheState {
@@ -425,7 +454,6 @@ function stampTranslations(state: CacheState): CacheState {
     else delete next.snippet;
     return applyTranslation(next);
   });
-  startBackgroundTranslation(items.map((item) => item.title));
   return { ...state, items };
 }
 

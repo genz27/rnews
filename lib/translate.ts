@@ -13,6 +13,12 @@ let map: TranslationMap = {};
 let loaded = false;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let translatingAll = false;
+let translationSink: (() => void) | null = null;
+const inflightTitles = new Set<string>();
+
+export function setTranslationSink(fn: () => void) {
+  translationSink = fn;
+}
 
 function storePath() {
   if (process.env.VERCEL) return '/tmp/rss-translations.json';
@@ -103,30 +109,42 @@ function chunk<T>(items: T[], size: number): T[][] {
 
 export async function translateTitles(titles: string[]): Promise<void> {
   await loadMap();
-  const unique = Array.from(new Set(titles.map((title) => title.trim()).filter((title) => isEnglishTitle(title) && !map[title])));
+  const unique = Array.from(
+    new Set(
+      titles
+        .map((title) => title.trim())
+        .filter((title) => isEnglishTitle(title) && !map[title] && !inflightTitles.has(title))
+    )
+  );
   if (unique.length === 0) return;
+  unique.forEach((title) => inflightTitles.add(title));
 
-  const batches = chunk(unique, BATCH_SIZE);
-  let cursor = 0;
+  try {
+    const batches = chunk(unique, BATCH_SIZE);
+    let cursor = 0;
 
-  async function worker() {
-    while (cursor < batches.length) {
-      const current = batches[cursor++];
-      try {
-        const translated = await translateBatch(current);
-        current.forEach((title, index) => {
-          const zh = translated[index];
-          if (zh && zh !== title) map[title] = zh;
-        });
-        schedulePersist();
-      } catch (error) {
-        console.warn('Translate batch failed:', error instanceof Error ? error.message : error);
+    async function worker() {
+      while (cursor < batches.length) {
+        const current = batches[cursor++];
+        try {
+          const translated = await translateBatch(current);
+          current.forEach((title, index) => {
+            const zh = translated[index];
+            if (zh && zh !== title) map[title] = zh;
+          });
+          schedulePersist();
+          translationSink?.();
+        } catch (error) {
+          console.warn('Translate batch failed:', error instanceof Error ? error.message : error);
+        }
       }
     }
-  }
 
-  await Promise.all(Array.from({ length: Math.min(BATCH_CONCURRENCY, batches.length) }, () => worker()));
-  await persistMap();
+    await Promise.all(Array.from({ length: Math.min(BATCH_CONCURRENCY, batches.length) }, () => worker()));
+    await persistMap();
+  } finally {
+    unique.forEach((title) => inflightTitles.delete(title));
+  }
 }
 
 export function applyTranslation<T extends { title: string; titleZh?: string }>(item: T): T {
@@ -134,25 +152,6 @@ export function applyTranslation<T extends { title: string; titleZh?: string }>(
   const translated = map[item.title];
   if (!translated) return item;
   return { ...item, titleZh: translated };
-}
-
-export async function hydrateTranslations<T extends { title: string; titleZh?: string }>(
-  items: T[],
-  options?: { immediate?: number }
-): Promise<T[]> {
-  await loadMap();
-  const applied = items.map((item) => applyTranslation(item));
-  const missing = applied.filter((item) => !item.titleZh && isEnglishTitle(item.title)).map((item) => item.title);
-  if (missing.length === 0) return applied;
-
-  const immediate = options?.immediate ?? missing.length;
-  await translateTitles(missing.slice(0, immediate));
-  const ready = applied.map((item) => applyTranslation(item));
-
-  if (missing.length > immediate) {
-    void translateTitles(missing.slice(immediate));
-  }
-  return ready;
 }
 
 export function startBackgroundTranslation(titles: string[]) {

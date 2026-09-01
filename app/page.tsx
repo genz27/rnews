@@ -2,7 +2,7 @@ import { after } from 'next/server';
 import { HomeView } from '@/components/HomeView';
 import { getCatalogCategories } from '@/lib/catalog';
 import { ensureBackgroundRefresh, fetchAllFeeds, filterItems, pickRandomItems, scheduleFeedRefresh } from '@/lib/rss';
-import { hydrateTranslations } from '@/lib/translate';
+import { applyTranslation } from '@/lib/translate';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -27,7 +27,7 @@ export default async function Page({ searchParams }: PageProps) {
     category === '推荐' && !query
       ? pickRandomItems(pool, PAGE_SIZE, Date.now())
       : pool.slice(0, PAGE_SIZE);
-  const translated = await hydrateTranslations(firstPage, { immediate: PAGE_SIZE });
+  const translated = firstPage.map((item) => applyTranslation(item));
   const hasMore = category === '推荐' && !query ? pool.length > 0 : pool.length > PAGE_SIZE;
 
   return (

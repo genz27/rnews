@@ -10,7 +10,7 @@ import {
 } from '@/lib/public-api';
 import { attachRateLimitHeaders, rateLimit } from '@/lib/rate-limit';
 import { fetchAllFeeds, filterItems } from '@/lib/rss';
-import { hydrateTranslations } from '@/lib/translate';
+import { applyTranslation } from '@/lib/translate';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       ),
       since.ms
     );
-    const items = await hydrateTranslations(pool.slice(0, limit), { immediate: limit });
+    const items = pool.slice(0, limit).map((item) => applyTranslation(item));
     const label = category && category !== '全部' ? `Rnews · ${category}` : 'Rnews';
     const xml = toRssXml(items, {
       title: label,

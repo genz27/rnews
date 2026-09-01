@@ -63,7 +63,7 @@ export function DocsView() {
             <li><code>cursor</code> 偏移，从 0 开始</li>
             <li><code>since</code> 只返回这个时间之后的条目，ISO 8601 或 Unix 时间戳。适合增量拉取，比较的是 <code>pubDate</code>，不含等于该时刻的条目。</li>
           </ul>
-          <p className="mt-2">按发布时间倒序。英文标题会附带 <code>titleZh</code>。响应里的 <code>newestPubDate</code> 可以当作下一次请求的 <code>since</code>。</p>
+          <p className="mt-2">按发布时间倒序。英文标题若已在后台译好，会附带 <code>titleZh</code>。响应里的 <code>newestPubDate</code> 可以当作下一次请求的 <code>since</code>。</p>
           <Code>{`curl -s "https://news.airgzn.top/api/v1/feed?category=社区&limit=5"`}</Code>
           <Code>{`curl -s "https://news.airgzn.top/api/v1/feed?since=2026-09-01T00:00:00.000Z&limit=20"`}</Code>
 
