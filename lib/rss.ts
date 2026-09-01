@@ -3,6 +3,7 @@ import path from 'path';
 import Parser from 'rss-parser';
 import { parseStringPromise } from 'xml2js';
 import { mergeSources, normalizeCategory } from './catalog';
+import { applyTranslation, loadTranslations, startBackgroundTranslation } from './translate';
 import { FeedItem, FeedSource } from './types';
 
 const parser = new Parser({
@@ -46,10 +47,12 @@ async function readDiskCache(): Promise<CacheState | null> {
     const raw = await readFile(/* turbopackIgnore: true */ cacheFilePath(), 'utf8');
     const parsed = JSON.parse(raw) as CacheState;
     if (!parsed || !Array.isArray(parsed.items) || typeof parsed.time !== 'number') return null;
-    parsed.items = parsed.items.map((item) => ({
-      ...item,
-      category: normalizeCategory(item.category),
-    }));
+    parsed.items = parsed.items.map((item) =>
+      applyTranslation({
+        ...item,
+        category: normalizeCategory(item.category),
+      })
+    );
     return parsed;
   } catch {
     return null;
@@ -69,6 +72,7 @@ async function writeDiskCache(state: CacheState) {
 async function ensureDiskLoaded() {
   if (diskLoaded) return;
   diskLoaded = true;
+  await loadTranslations();
   if (cache?.items.length) return;
   const fromDisk = await readDiskCache();
   if (fromDisk?.items.length) cache = fromDisk;
@@ -322,12 +326,19 @@ async function refreshAll(): Promise<CacheState> {
   return state;
 }
 
+function stampTranslations(state: CacheState): CacheState {
+  const items = state.items.map((item) => applyTranslation(item));
+  startBackgroundTranslation(items.map((item) => item.title));
+  return { ...state, items };
+}
+
 export async function fetchAllFeeds(options?: { force?: boolean }): Promise<CacheState> {
   const force = options?.force ?? false;
   await ensureDiskLoaded();
 
   if (!force && cache && cache.items.length > 0) {
     const age = Date.now() - cache.time;
+    cache = stampTranslations(cache);
     if (age < FRESH_MS && !cache.partial) return cache;
     if (age < STALE_MS) {
       if (!inflight) {
@@ -349,18 +360,18 @@ export async function fetchAllFeeds(options?: { force?: boolean }): Promise<Cach
     });
   }
 
-  if (!force && cache?.items.length) return cache;
+  if (!force && cache?.items.length) return stampTranslations(cache);
 
   const started = Date.now();
   while (Date.now() - started < 12000) {
-    if (cache?.items.length) return cache;
+    if (cache?.items.length) return stampTranslations(cache);
     if (!inflight) break;
     await new Promise((resolve) => setTimeout(resolve, 150));
   }
 
-  if (inflight) return inflight;
+  if (inflight) return stampTranslations(await inflight);
 
-  return (
+  return stampTranslations(
     cache ?? {
       items: [],
       time: Date.now(),
@@ -385,6 +396,7 @@ export function filterItems(
     next = next.filter(
       (item) =>
         item.title.toLowerCase().includes(q) ||
+        (item.titleZh && item.titleZh.toLowerCase().includes(q)) ||
         item.source.toLowerCase().includes(q)
     );
   }

@@ -19,9 +19,14 @@ export function FeedRow({ item }: FeedRowProps) {
       rel="noopener noreferrer"
       className="group grid gap-2 border-b border-zinc-200/80 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-baseline sm:gap-8 lg:py-6 dark:border-white/[0.06]"
     >
-      <h2 className="text-base font-medium leading-7 tracking-tight text-zinc-800 transition-colors duration-200 group-hover:text-zinc-950 lg:text-[17px] lg:leading-8 dark:text-zinc-100 dark:group-hover:text-white">
-        {item.title}
-      </h2>
+      <div className="min-w-0">
+        <h2 className="text-base font-medium leading-7 tracking-tight text-zinc-800 transition-colors duration-200 group-hover:text-zinc-950 lg:text-[17px] lg:leading-8 dark:text-zinc-100 dark:group-hover:text-white">
+          {item.titleZh || item.title}
+        </h2>
+        {item.titleZh && item.titleZh !== item.title && (
+          <p className="mt-1 text-sm leading-6 text-zinc-500">{item.title}</p>
+        )}
+      </div>
       <p className="flex flex-wrap items-center gap-x-2 text-[13px] leading-6 text-zinc-500 sm:justify-end">
         <span>{item.source}</span>
         {item.category && (

@@ -1,6 +1,7 @@
 export interface FeedItem {
   id: string;
   title: string;
+  titleZh?: string;
   link: string;
   pubDate: string;
   source: string;
