@@ -3,7 +3,7 @@ import path from 'path';
 import Parser from 'rss-parser';
 import { parseStringPromise } from 'xml2js';
 import { mergeSources, normalizeCategory } from './catalog';
-import { applyTranslation, loadTranslations, setTranslationSink, translateTitles } from './translate';
+import { applyTranslation, isEnglishTitle, loadTranslations, lookupTranslation, setTranslationSink, translateTitles } from './translate';
 import { FeedItem, FeedSource } from './types';
 
 type ParsedItem = {
@@ -373,7 +373,7 @@ function isPrioritySource(source: FeedSource): boolean {
 let translatingAll = false;
 let translateAgain = false;
 
-async function translateAndPersist() {
+async function translateAndPersist(limit?: number) {
   if (!cache?.items.length) return;
   if (translatingAll) {
     translateAgain = true;
@@ -383,18 +383,22 @@ async function translateAndPersist() {
   try {
     do {
       translateAgain = false;
-      await translateTitles(cache.items.map((item) => item.title));
+      const missing = cache.items
+        .map((item) => item.title)
+        .filter((title) => isEnglishTitle(title) && !lookupTranslation(title));
+      const batch = typeof limit === 'number' ? missing.slice(0, Math.max(limit, 0)) : missing;
+      if (batch.length > 0) await translateTitles(batch);
       cache = { ...cache, items: cache.items.map((item) => applyTranslation(item)) };
       await writeDiskCache(cache);
-    } while (translateAgain && cache.items.length);
+    } while (translateAgain && cache.items.length && limit == null);
   } finally {
     translatingAll = false;
   }
 }
 
-export function scheduleMissingTranslations() {
+export async function scheduleMissingTranslations() {
   if (!cache?.items.length) return;
-  void translateAndPersist();
+  await translateAndPersist(160);
 }
 
 async function refreshAll(): Promise<CacheState> {

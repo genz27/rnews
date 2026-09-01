@@ -24,9 +24,9 @@ export default async function Page({ searchParams }: PageProps) {
 
   ensureBackgroundRefresh();
   const snapshot = await fetchAllFeeds();
-  after(() => {
+  after(async () => {
     scheduleFeedRefresh();
-    scheduleMissingTranslations();
+    await scheduleMissingTranslations();
   });
 
   const initialPages = buildInitialPages(snapshot.items, snapshot.time || Date.now());

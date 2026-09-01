@@ -153,6 +153,9 @@ export async function translateTitles(titles: string[]): Promise<void> {
 
     await Promise.all(Array.from({ length: Math.min(BATCH_CONCURRENCY, batches.length) }, () => worker()));
     await persistMap();
+    if (unique.length > 0) {
+      console.info(`Translated ${unique.filter((title) => map[title]).length}/${unique.length} titles`);
+    }
   } finally {
     unique.forEach((title) => inflightTitles.delete(title));
   }

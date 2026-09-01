@@ -29,9 +29,9 @@ export async function GET(request: NextRequest) {
       .filter(Boolean);
 
     const snapshot = await fetchAllFeeds();
-    after(() => {
+    after(async () => {
       scheduleFeedRefresh(force);
-      scheduleMissingTranslations();
+      await scheduleMissingTranslations();
     });
     const pool = filterItems(snapshot.items, category, query);
     const recommend = category === '推荐' && !query;
