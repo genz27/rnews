@@ -15,7 +15,7 @@ const OPML_URL =
   'https://raw.githubusercontent.com/JackyST0/awesome-rsshub-routes/main/feeds.opml';
 
 const USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 RSSNews/1.0';
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Rnews/1.0';
 
 const FRESH_MS = 20 * 60 * 1000;
 const STALE_MS = 6 * 60 * 60 * 1000;

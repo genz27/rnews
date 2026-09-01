@@ -10,7 +10,7 @@ import { getCatalogCategories } from '@/lib/catalog';
 import { FeedItem, FeedResponse } from '@/lib/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const CATEGORY_KEY = 'rss-news-category';
+const CATEGORY_KEY = 'rnews-category';
 
 interface HomeViewProps {
   initialItems: FeedItem[];
@@ -228,7 +228,7 @@ export function HomeView({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
               <h1 className="text-xl font-semibold tracking-tight text-zinc-900 lg:text-2xl dark:text-zinc-50">
-                RSS News
+                Rnews
               </h1>
               <p className="mt-1 text-sm leading-6 text-zinc-500">
                 聚合技术社区、AI、科技媒体与主机资讯。

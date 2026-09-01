@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RSS News",
+  title: "Rnews",
   description: "聚合技术社区、AI、科技媒体与主机资讯。",
 };
 
