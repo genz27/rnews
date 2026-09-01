@@ -25,9 +25,9 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#f6f3ef] text-zinc-900 transition-colors dark:bg-black dark:text-zinc-50">
-      <header className="sticky top-0 z-20 border-b border-black/5 bg-[#f6f3ef]/85 backdrop-blur-xl dark:border-white/10 dark:bg-black/75">
-        <div className="mx-auto max-w-7xl px-4 py-3">
+    <div className="min-h-screen bg-zinc-50 text-zinc-900 transition-colors dark:bg-black dark:text-zinc-50">
+      <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/90 backdrop-blur-xl dark:border-zinc-800 dark:bg-black/80">
+        <div className="mx-auto max-w-2xl px-4 py-3">
           <div className="mb-3 flex items-center gap-3">
             <h1 className="shrink-0 bg-gradient-to-r from-rose-500 via-pink-500 to-orange-400 bg-clip-text text-xl font-black tracking-tight text-transparent sm:text-2xl">
               RSS NEWS
@@ -41,7 +41,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-5">
+      <main className="mx-auto max-w-2xl px-4 py-4">
         <Feed category={selectedCategory} searchQuery={searchQuery} refreshKey={refreshKey} />
       </main>
 

@@ -5,8 +5,6 @@ export interface FeedItem {
   pubDate: string;
   source: string;
   category: string;
-  image?: string;
-  description?: string;
 }
 
 export interface FeedResponse {

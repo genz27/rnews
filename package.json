@@ -14,7 +14,6 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-intersection-observer": "^11.0.1",
-    "react-masonry-css": "^1.0.16",
     "rss-parser": "^3.13.0",
     "xml2js": "^0.6.2"
   },

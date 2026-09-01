@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchAllFeeds, filterItems } from '@/lib/rss';
 import { FeedResponse } from '@/lib/types';
 
-const ITEMS_PER_PAGE = 24;
+const ITEMS_PER_PAGE = 40;
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;

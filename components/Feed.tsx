@@ -1,22 +1,15 @@
 'use client';
 
 import { FeedItem, FeedResponse } from '@/lib/types';
-import { FeedCard, FeedCardSkeleton } from './FeedCard';
+import { FeedRow, FeedRowSkeleton } from './FeedCard';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
-import Masonry from 'react-masonry-css';
 
 interface FeedProps {
   category: string;
   searchQuery: string;
   refreshKey: number;
 }
-
-const breakpointColumns = {
-  default: 4,
-  1280: 3,
-  768: 2,
-};
 
 export function Feed({ category, searchQuery, refreshKey }: FeedProps) {
   const [items, setItems] = useState<FeedItem[]>([]);
@@ -28,7 +21,7 @@ export function Feed({ category, searchQuery, refreshKey }: FeedProps) {
   const [stats, setStats] = useState<FeedResponse['stats']>();
   const cursorRef = useRef(0);
   const requestIdRef = useRef(0);
-  const { ref, inView } = useInView({ rootMargin: '600px' });
+  const { ref, inView } = useInView({ rootMargin: '800px' });
 
   const loadPage = useCallback(
     async (reset: boolean) => {
@@ -92,12 +85,7 @@ export function Feed({ category, searchQuery, refreshKey }: FeedProps) {
 
   if (error && items.length === 0 && !loading) {
     return (
-      <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-rose-500 dark:bg-rose-950/40">
-          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
+      <div className="px-4 py-16 text-center">
         <p className="text-sm text-zinc-600 dark:text-zinc-400">{error}</p>
         <button
           onClick={() => void loadPage(true)}
@@ -111,28 +99,21 @@ export function Feed({ category, searchQuery, refreshKey }: FeedProps) {
 
   if (loading && items.length === 0) {
     return (
-      <div>
-        <p className="mb-4 text-center text-sm text-zinc-500">正在聚合订阅源，首次加载大约需要几秒钟…</p>
-        <Masonry breakpointCols={breakpointColumns} className="flex -ml-3 w-auto" columnClassName="pl-3 bg-clip-padding">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <div key={index} className="mb-3">
-              <FeedCardSkeleton />
-            </div>
-          ))}
-        </Masonry>
+      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+        <p className="border-b border-zinc-200 px-4 py-3 text-sm text-zinc-500 dark:border-zinc-800">
+          正在聚合订阅源…
+        </p>
+        {Array.from({ length: 12 }).map((_, index) => (
+          <FeedRowSkeleton key={index} />
+        ))}
       </div>
     );
   }
 
   if (!loading && items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 text-zinc-400 dark:bg-zinc-800">
-          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-          </svg>
-        </div>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">这个分类暂时没有内容，换个关键词或分类试试。</p>
+      <div className="px-4 py-16 text-center text-sm text-zinc-500">
+        这个分类暂时没有内容，换个关键词或分类试试。
       </div>
     );
   }
@@ -140,31 +121,20 @@ export function Feed({ category, searchQuery, refreshKey }: FeedProps) {
   return (
     <>
       {stats && (
-        <p className="mb-4 text-xs text-zinc-500">
+        <p className="mb-3 px-1 text-xs text-zinc-500">
           已展示 {items.length}/{total} 条
           {stats.ok ? ` · ${stats.ok}/${stats.sources} 个源可用` : ''}
           {stats.failed ? ` · ${stats.failed} 个源暂时失败` : ''}
         </p>
       )}
-      <Masonry breakpointCols={breakpointColumns} className="flex -ml-3 w-auto" columnClassName="pl-3 bg-clip-padding">
+      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
         {items.map((item, index) => (
-          <div key={`${item.id}-${index}`} className="mb-3">
-            <FeedCard item={item} />
-          </div>
+          <FeedRow key={`${item.id}-${index}`} item={item} />
         ))}
-      </Masonry>
-
-      <div ref={ref} className="flex justify-center py-8">
-        {loadingMore && (
-          <div className="flex items-center gap-2 text-sm text-zinc-500">
-            <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-            正在加载更多
-          </div>
-        )}
-        {!hasMore && items.length > 0 && <span className="text-sm text-zinc-400">已经到底了</span>}
+        <div ref={ref} className="flex justify-center py-5">
+          {loadingMore && <span className="text-sm text-zinc-500">正在加载更多</span>}
+          {!hasMore && items.length > 0 && <span className="text-sm text-zinc-400">已经到底了</span>}
+        </div>
       </div>
     </>
   );

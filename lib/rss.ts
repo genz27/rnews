@@ -5,13 +5,6 @@ import { FeedItem, FeedSource } from './types';
 
 const parser = new Parser({
   timeout: 8000,
-  customFields: {
-    item: [
-      ['media:thumbnail', 'mediaThumbnail'],
-      ['media:content', 'mediaContent'],
-      ['content:encoded', 'contentEncoded'],
-    ],
-  },
 });
 
 const OPML_URL =
@@ -118,32 +111,6 @@ async function fetchText(url: string): Promise<string> {
   return response.text();
 }
 
-function extractImage(item: Record<string, unknown>): string | undefined {
-  const enclosure = item.enclosure as { url?: string; type?: string } | undefined;
-  if (enclosure?.url && (/^image\//i.test(enclosure.type || '') || /\.(jpg|jpeg|png|gif|webp|avif)(\?|$)/i.test(enclosure.url))) {
-    return enclosure.url;
-  }
-
-  const mediaThumb = item.mediaThumbnail as { $?: { url?: string }; url?: string } | string | undefined;
-  if (typeof mediaThumb === 'string' && mediaThumb.startsWith('http')) return mediaThumb;
-  if (mediaThumb && typeof mediaThumb === 'object') {
-    const url = mediaThumb.$?.url || mediaThumb.url;
-    if (url) return url;
-  }
-
-  const mediaContent = item.mediaContent as { $?: { url?: string }; url?: string } | undefined;
-  if (mediaContent && typeof mediaContent === 'object') {
-    const url = mediaContent.$?.url || mediaContent.url;
-    if (url) return url;
-  }
-
-  const content = String(item.contentEncoded || item.content || item.contentSnippet || '');
-  const imgMatch = content.match(/<img[^>]+src=["']([^"'>]+)["']/i);
-  if (imgMatch?.[1]?.startsWith('http')) return imgMatch[1];
-
-  return undefined;
-}
-
 function itemDate(item: { isoDate?: string; pubDate?: string; published?: string; updated?: string }): string {
   const raw = item.isoDate || item.pubDate || item.published || item.updated;
   if (!raw) return '1970-01-01T00:00:00.000Z';
@@ -167,8 +134,6 @@ export async function fetchFeed(source: FeedSource): Promise<FeedItem[]> {
         pubDate: itemDate(item),
         source: source.title,
         category: source.category,
-        image: extractImage(item as unknown as Record<string, unknown>),
-        description: item.contentSnippet || undefined,
       } satisfies FeedItem;
     })
     .filter((item) => item.title && item.link);

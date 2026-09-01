@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "RSS NEWS",
-  description: "小红书风格的 RSS 瀑布流新闻站，聚合技术社区、AI、科技媒体与主机资讯。",
+  description: "纯文字 RSS 信息流，一行一条聚合技术社区、AI、科技媒体与主机资讯。",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
