@@ -27,7 +27,7 @@ export default async function Page({ searchParams }: PageProps) {
   const snapshot = await fetchAllFeeds();
   after(() => scheduleFeedRefresh());
 
-  const initialPages = buildInitialPages(snapshot.items, snapshot.time || Date.now());
+  const initialPages = buildInitialPages(snapshot.items, snapshot.time);
   if (query) {
     initialPages[pageKey(category, query)] = buildPage(snapshot.items, category, query);
   }

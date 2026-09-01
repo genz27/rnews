@@ -39,9 +39,12 @@ export function HomeView({
   const searchRef = useRef<HTMLInputElement>(null);
   const prefetchRef = useRef<(category: string) => void>(() => undefined);
   const selectedRef = useRef(selectedCategory);
-  selectedRef.current = selectedCategory;
   const queryRef = useRef(searchQuery);
-  queryRef.current = searchQuery;
+
+  useEffect(() => {
+    selectedRef.current = selectedCategory;
+    queryRef.current = searchQuery;
+  }, [searchQuery, selectedCategory]);
 
   const handleRegisterPrefetch = useCallback((prefetch: (category: string) => void) => {
     prefetchRef.current = prefetch;
@@ -230,7 +233,7 @@ export function HomeView({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
               <h1 className="text-xl font-semibold tracking-tight text-zinc-900 lg:text-2xl dark:text-zinc-50">
-                <a href="/">Rnews</a>
+                <Link href="/">Rnews</Link>
               </h1>
               <p className="mt-1 text-sm leading-6 text-zinc-500">
                 聚合技术社区、AI、科技媒体与主机资讯

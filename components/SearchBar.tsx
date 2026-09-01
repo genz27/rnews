@@ -19,8 +19,11 @@ export function SearchBar({
   const lastSent = useRef(value);
 
   useEffect(() => {
-    setQuery(value);
-    lastSent.current = value;
+    const frame = window.requestAnimationFrame(() => {
+      setQuery(value);
+      lastSent.current = value;
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [value]);
 
   useEffect(() => {

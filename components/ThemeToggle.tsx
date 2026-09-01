@@ -1,29 +1,37 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
+
+type Theme = 'light' | 'dark';
+
+const THEME_EVENT = 'rnews-theme-change';
+
+function subscribe(callback: () => void) {
+  window.addEventListener(THEME_EVENT, callback);
+  window.addEventListener('storage', callback);
+  return () => {
+    window.removeEventListener(THEME_EVENT, callback);
+    window.removeEventListener('storage', callback);
+  };
+}
+
+function getTheme(): Theme {
+  return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+}
+
+function getServerTheme(): Theme {
+  return 'dark';
+}
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    const initialTheme = savedTheme || 'dark';
-    setTheme(initialTheme);
-    document.documentElement.classList.toggle('dark', initialTheme === 'dark');
-  }, []);
+  const theme = useSyncExternalStore(subscribe, getTheme, getServerTheme);
 
   const toggleTheme = () => {
-    const next = theme === 'light' ? 'dark' : 'light';
-    setTheme(next);
+    const next: Theme = theme === 'light' ? 'dark' : 'light';
     localStorage.setItem('theme', next);
     document.documentElement.classList.toggle('dark', next === 'dark');
+    window.dispatchEvent(new Event(THEME_EVENT));
   };
-
-  if (!mounted) {
-    return <span className="text-xs text-zinc-500">浅色</span>;
-  }
 
   return (
     <button

@@ -13,6 +13,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className="dark h-full antialiased"
       suppressHydrationWarning
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.remove('dark')}catch{}",
+          }}
+        />
+      </head>
       <body className="min-h-svh bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
         {children}
       </body>

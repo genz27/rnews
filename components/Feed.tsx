@@ -77,10 +77,8 @@ export function Feed({
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [inView, setInView] = useState(false);
 
   const pagesRef = useRef(pages);
-  pagesRef.current = pages;
   const inflightRef = useRef(new Set<string>());
   const requestIdRef = useRef(0);
   const prevRefreshRef = useRef(refreshKey);
@@ -88,9 +86,16 @@ export function Feed({
   const paintedKeyRef = useRef(bootKey);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const onRefreshedRef = useRef(onRefreshed);
-  onRefreshedRef.current = onRefreshed;
   const onCachedAtRef = useRef(onCachedAt);
-  onCachedAtRef.current = onCachedAt;
+
+  useEffect(() => {
+    pagesRef.current = pages;
+  }, [pages]);
+
+  useEffect(() => {
+    onRefreshedRef.current = onRefreshed;
+    onCachedAtRef.current = onCachedAt;
+  }, [onCachedAt, onRefreshed]);
 
   const activeKey = pageKey(category, searchQuery);
   const recommend = category === '推荐' && !searchQuery;
@@ -249,20 +254,23 @@ export function Feed({
   useEffect(() => {
     const node = sentinelRef.current;
     if (!node) return;
-    setInView(false);
     const observer = new IntersectionObserver(
-      ([entry]) => setInView(entry.isIntersecting),
+      ([entry]) => {
+        if (
+          entry.isIntersecting &&
+          activePage?.hasMore &&
+          !loadingMore &&
+          !refreshing &&
+          activePage.items.length > 0
+        ) {
+          void loadPage(category, searchQuery, 'append');
+        }
+      },
       { rootMargin: '800px' }
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [activeKey, activePage?.items.length]);
-
-  useEffect(() => {
-    if (inView && activePage?.hasMore && !loadingMore && !refreshing && activePage.items.length > 0) {
-      void loadPage(category, searchQuery, 'append');
-    }
-  }, [activePage, category, inView, loadPage, loadingMore, refreshing, searchQuery]);
+  }, [activeKey, activePage, category, loadPage, loadingMore, refreshing, searchQuery]);
 
   useEffect(() => {
     const run = () => getCatalogCategories().forEach(prefetch);
