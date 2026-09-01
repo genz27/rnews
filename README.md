@@ -11,6 +11,8 @@ npm run dev
 
 打开 [http://localhost:3000](http://localhost:3000)。首次拉取全部订阅源大约需要几秒，之后会缓存 15 分钟。
 
+开发模式依赖 WebSocket 做热更新。如果页面是通过预览代理打开的，控制台里的 `_next/hmr` 失败可以忽略，不影响阅读。正式预览或部署请用生产模式：
+
 ```bash
 npm run build
 npm start
