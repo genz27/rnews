@@ -220,7 +220,65 @@ async function fetchText(url: string): Promise<string> {
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
-  return response.text();
+  return decodeXmlBytes(new Uint8Array(await response.arrayBuffer()), response.headers.get('content-type'));
+}
+
+const ENCODING_ALIASES: Record<string, string> = {
+  utf8: 'utf-8',
+  'utf-8': 'utf-8',
+  unicode: 'utf-8',
+  gbk: 'gbk',
+  gb2312: 'gbk',
+  'gb-2312': 'gbk',
+  gb_2312: 'gbk',
+  'gb_2312-80': 'gbk',
+  gb18030: 'gb18030',
+  'windows-936': 'gbk',
+  cp936: 'gbk',
+  'iso-8859-1': 'windows-1252',
+  latin1: 'windows-1252',
+};
+
+function normalizeEncoding(raw?: string): string {
+  const key = (raw || '').trim().toLowerCase();
+  return ENCODING_ALIASES[key] || key || 'utf-8';
+}
+
+function sniffXmlEncoding(bytes: Uint8Array, contentType?: string | null): string {
+  const headerCharset = /charset\s*=\s*["']?([a-z0-9_\-]+)/i.exec(contentType || '')?.[1];
+  const head = Buffer.from(bytes.subarray(0, 1024)).toString('latin1');
+  const xmlEnc = /encoding\s*=\s*["']\s*([a-z0-9_\-]+)/i.exec(head)?.[1];
+  return normalizeEncoding(xmlEnc || headerCharset || 'utf-8');
+}
+
+function decodeBytes(bytes: Uint8Array, encoding: string): string {
+  try {
+    return new TextDecoder(encoding, { fatal: false }).decode(bytes);
+  } catch {
+    return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+  }
+}
+
+function replacementRatio(text: string): number {
+  if (!text) return 0;
+  const sample = text.slice(0, 8000);
+  return (sample.match(/\uFFFD/g) || []).length / Math.max(sample.length, 1);
+}
+
+function decodeXmlBytes(bytes: Uint8Array, contentType?: string | null): string {
+  const encoding = sniffXmlEncoding(bytes, contentType);
+  let text = decodeBytes(bytes, encoding);
+  if (encoding === 'utf-8' && replacementRatio(text) > 0.01) {
+    const gbk = decodeBytes(bytes, 'gbk');
+    if (replacementRatio(gbk) < replacementRatio(text) && /[\u4e00-\u9fff]/.test(gbk)) {
+      text = gbk;
+    }
+  }
+  return text.replace(/encoding\s*=\s*["'][^"']+["']/i, 'encoding="UTF-8"');
+}
+
+function isMojibake(text: string): boolean {
+  return (text.match(/\uFFFD/g) || []).length >= 2;
 }
 
 function itemDate(item: { isoDate?: string; pubDate?: string; published?: string; updated?: string }): string {
@@ -241,18 +299,19 @@ export async function fetchFeed(source: FeedSource): Promise<FeedItem[]> {
       const item = raw as ParsedItem;
       const link = item.link || item.guid || source.url;
       const title = (item.title || '无标题').trim();
+      if (isMojibake(title)) return null;
       const snippet = toSnippet(item, title);
       return {
         id: String(item.guid || link || `${source.url}-${item.title}`),
         title,
-        ...(snippet ? { snippet } : {}),
+        ...(snippet && !isMojibake(snippet) ? { snippet } : {}),
         link,
         pubDate: itemDate(item),
         source: source.title,
         category: source.category,
       } satisfies FeedItem;
     })
-    .filter((item) => item.title && item.link);
+    .filter((item): item is FeedItem => Boolean(item?.title && item.link));
 }
 
 function toSnippet(item: ParsedItem, title: string): string | undefined {
