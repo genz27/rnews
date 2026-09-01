@@ -373,7 +373,7 @@ function isPrioritySource(source: FeedSource): boolean {
 let translatingAll = false;
 let translateAgain = false;
 
-async function translateAndPersist(limit?: number) {
+async function translateAndPersist() {
   if (!cache?.items.length) return;
   if (translatingAll) {
     translateAgain = true;
@@ -386,19 +386,13 @@ async function translateAndPersist(limit?: number) {
       const missing = cache.items
         .map((item) => item.title)
         .filter((title) => isEnglishTitle(title) && !lookupTranslation(title));
-      const batch = typeof limit === 'number' ? missing.slice(0, Math.max(limit, 0)) : missing;
-      if (batch.length > 0) await translateTitles(batch);
+      if (missing.length > 0) await translateTitles(missing);
       cache = { ...cache, items: cache.items.map((item) => applyTranslation(item)) };
       await writeDiskCache(cache);
-    } while (translateAgain && cache.items.length && limit == null);
+    } while (translateAgain && cache.items.length);
   } finally {
     translatingAll = false;
   }
-}
-
-export async function scheduleMissingTranslations() {
-  if (!cache?.items.length) return;
-  await translateAndPersist(160);
 }
 
 async function refreshAll(): Promise<CacheState> {

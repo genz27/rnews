@@ -37,28 +37,6 @@ type CachedPage = {
   enterFrom: number;
 };
 
-function patchTitleZh(items: FeedItem[], incoming: FeedItem[]): { items: FeedItem[]; changed: boolean } {
-  if (!incoming.length) return { items, changed: false };
-  const byId = new Map<string, string>();
-  const byTitle = new Map<string, string>();
-  for (const item of incoming) {
-    if (item.titleZh && item.titleZh !== item.title) {
-      byId.set(item.id, item.titleZh);
-      byTitle.set(item.title, item.titleZh);
-    }
-  }
-  if (byId.size === 0) return { items, changed: false };
-  let changed = false;
-  const next = items.map((item) => {
-    if (item.titleZh && item.titleZh !== item.title) return item;
-    const zh = byId.get(item.id) || byTitle.get(item.title);
-    if (!zh) return item;
-    changed = true;
-    return { ...item, titleZh: zh };
-  });
-  return { items: next, changed };
-}
-
 function toCached(
   page: InitialFeedPage,
   stats?: FeedResponse['stats'],
@@ -221,23 +199,6 @@ export function Feed({
     });
   }, []);
 
-  const applyIncomingZh = useCallback((incoming: FeedItem[]) => {
-    if (!incoming.length) return;
-    setPages((prev) => {
-      let changed = false;
-      const next: Record<string, CachedPage> = { ...prev };
-      for (const [key, page] of Object.entries(prev)) {
-        const patched = patchTitleZh(page.items, incoming);
-        if (!patched.changed) continue;
-        changed = true;
-        next[key] = { ...page, items: patched.items, enterFrom: patched.items.length };
-      }
-      if (!changed) return prev;
-      pagesRef.current = next;
-      return next;
-    });
-  }, []);
-
   const fetchFeed = useCallback(
     async (nextCategory: string, query: string, cursor: number, refresh: boolean) => {
       const isRecommend = nextCategory === '推荐' && !query;
@@ -252,7 +213,7 @@ export function Feed({
         if (excludeIds.length > 0) params.set('exclude', excludeIds.join(','));
       }
       const response = await fetch(`/api/feed?${params.toString()}`, {
-        cache: 'no-store',
+        cache: isRecommend || refresh ? 'no-store' : 'default',
       });
       const data = (await response.json()) as FeedResponse & { error?: string };
       if (!response.ok) throw new Error(data.error || '订阅源暂时不可用');
@@ -286,7 +247,6 @@ export function Feed({
         if (mode !== 'prefetch' && requestIdRef.current !== requestId) return;
 
         const nextItems = data.items || [];
-        applyIncomingZh(nextItems);
         if (mode === 'append' && existing) {
           const seen = new Set(existing.items.map((item) => item.id));
           const unique = nextItems.filter((item) => !seen.has(item.id));
@@ -325,7 +285,7 @@ export function Feed({
         }
       }
     },
-    [applyIncomingZh, fetchFeed, putPage]
+    [fetchFeed, putPage]
   );
 
   const prefetch = useCallback(
@@ -383,29 +343,6 @@ export function Feed({
     const id = window.setTimeout(run, 1);
     return () => window.clearTimeout(id);
   }, [prefetch]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const hydrate = async () => {
-      for (const name of getCatalogCategories()) {
-        if (cancelled) return;
-        try {
-          const data = await fetchFeed(name, '', 0, false);
-          if (cancelled) return;
-          applyIncomingZh(data.items || []);
-        } catch {
-          /* keep current titles */
-        }
-      }
-    };
-    const first = window.setTimeout(() => void hydrate(), 2500);
-    const second = window.setTimeout(() => void hydrate(), 12000);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(first);
-      window.clearTimeout(second);
-    };
-  }, [applyIncomingZh, fetchFeed, refreshKey]);
 
   useEffect(() => {
     onBusyChange?.(refreshing);

@@ -1,8 +1,8 @@
 import { after } from 'next/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { PAGE_SIZE } from '@/lib/feed-page';
-import { fetchAllFeeds, filterItems, pickRandomItems, scheduleFeedRefresh, scheduleMissingTranslations } from '@/lib/rss';
-import { applyTranslation, translateSlice } from '@/lib/translate';
+import { fetchAllFeeds, filterItems, pickRandomItems, scheduleFeedRefresh } from '@/lib/rss';
+import { applyTranslation } from '@/lib/translate';
 import { FeedResponse } from '@/lib/types';
 import { attachRateLimitHeaders, rateLimit } from '@/lib/rate-limit';
 
@@ -29,17 +29,13 @@ export async function GET(request: NextRequest) {
       .filter(Boolean);
 
     const snapshot = await fetchAllFeeds();
-    after(async () => {
-      scheduleFeedRefresh(force);
-      await scheduleMissingTranslations();
-    });
+    after(() => scheduleFeedRefresh(force));
     const pool = filterItems(snapshot.items, category, query);
     const recommend = category === '推荐' && !query;
 
     const page = recommend
       ? pickRandomItems(pool, PAGE_SIZE, seed, exclude)
       : pool.slice(cursor, cursor + PAGE_SIZE);
-    await translateSlice(page.map((item) => item.title));
     const paginatedItems = page.map((item) => applyTranslation(item));
     const hasMore = recommend ? pool.length > 0 : cursor + PAGE_SIZE < pool.length;
 
@@ -60,7 +56,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Cache-Control': recommend
           ? 'no-store'
-          : 'public, max-age=15, s-maxage=30, stale-while-revalidate=1800',
+          : 'public, max-age=30, s-maxage=60, stale-while-revalidate=1800',
       },
     });
     return attachRateLimitHeaders(json, request, { limit: RATE_LIMIT, name: 'site' });

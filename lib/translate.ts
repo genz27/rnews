@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
+import translationSeed from '@/data/translations.json';
 
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
@@ -9,7 +10,9 @@ const BATCH_CONCURRENCY = process.env.VERCEL ? 3 : 6;
 
 type TranslationMap = Record<string, string>;
 
-let map: TranslationMap = {};
+const SEED: TranslationMap = translationSeed as TranslationMap;
+
+let map: TranslationMap = { ...SEED };
 let loaded = false;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let translationSink: (() => void) | null = null;
@@ -27,12 +30,13 @@ function storePath() {
 async function loadMap() {
   if (loaded) return;
   loaded = true;
+  map = { ...SEED };
   try {
     const raw = await readFile(/* turbopackIgnore: true */ storePath(), 'utf8');
     const parsed = JSON.parse(raw) as TranslationMap;
-    if (parsed && typeof parsed === 'object') map = parsed;
+    if (parsed && typeof parsed === 'object') Object.assign(map, parsed);
   } catch {
-    map = {};
+    /* keep seed */
   }
 }
 
@@ -163,18 +167,6 @@ export async function translateTitles(titles: string[]): Promise<void> {
 
 export function lookupTranslation(title: string): string | undefined {
   return map[title] || map[title.trim()];
-}
-
-export async function translateSlice(titles: string[], timeoutMs = 2200) {
-  await loadMap();
-  const pending = Array.from(
-    new Set(titles.map((title) => title.trim()).filter((title) => isEnglishTitle(title) && !map[title]))
-  );
-  if (pending.length === 0) return;
-  await Promise.race([
-    translateTitles(pending),
-    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
-  ]);
 }
 
 export function applyTranslation<T extends { title: string; titleZh?: string }>(item: T): T {

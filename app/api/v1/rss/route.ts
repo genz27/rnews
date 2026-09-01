@@ -9,7 +9,7 @@ import {
   toRssXml,
 } from '@/lib/public-api';
 import { attachRateLimitHeaders, rateLimit } from '@/lib/rate-limit';
-import { fetchAllFeeds, filterItems, scheduleMissingTranslations } from '@/lib/rss';
+import { fetchAllFeeds, filterItems, scheduleFeedRefresh } from '@/lib/rss';
 import { applyTranslation } from '@/lib/translate';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const origin = siteOrigin(request);
 
     const snapshot = await fetchAllFeeds();
-    after(() => scheduleMissingTranslations());
+    after(() => scheduleFeedRefresh());
     const pool = filterSince(
       filterItems(snapshot.items, category, query).sort(
         (a, b) => Date.parse(b.pubDate) - Date.parse(a.pubDate)

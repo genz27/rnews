@@ -9,8 +9,8 @@ import {
   parseSince,
 } from '@/lib/public-api';
 import { rateLimit, attachRateLimitHeaders } from '@/lib/rate-limit';
-import { fetchAllFeeds, filterItems, scheduleMissingTranslations } from '@/lib/rss';
-import { applyTranslation, translateSlice } from '@/lib/translate';
+import { fetchAllFeeds, filterItems, scheduleFeedRefresh } from '@/lib/rss';
+import { applyTranslation } from '@/lib/translate';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     const snapshot = await fetchAllFeeds();
-    after(() => scheduleMissingTranslations());
+    after(() => scheduleFeedRefresh());
     const pool = filterSince(
       filterItems(snapshot.items, category, query).sort(
         (a, b) => Date.parse(b.pubDate) - Date.parse(a.pubDate)
@@ -48,7 +48,6 @@ export async function GET(request: NextRequest) {
       since.ms
     );
     const page = pool.slice(cursor, cursor + limit);
-    await translateSlice(page.map((item) => item.title));
     const items = page.map((item) => applyTranslation(item));
     const hasMore = cursor + limit < pool.length;
     const sinceIso = since.ms != null ? new Date(since.ms).toISOString() : null;
