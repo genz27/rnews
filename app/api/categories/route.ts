@@ -8,13 +8,8 @@ export const revalidate = 1800;
 export async function GET() {
   try {
     const sources = await getSources();
-    const extras = new Set(
-      sources
-        .map((source) => source.category)
-        .filter((category) => category && !getCatalogCategories().includes(category))
-    );
     return NextResponse.json({
-      categories: [...getCatalogCategories(), ...Array.from(extras).sort()],
+      categories: getCatalogCategories(),
       sourceCount: sources.length,
     });
   } catch (error) {

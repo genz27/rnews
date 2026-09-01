@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import Parser from 'rss-parser';
 import { parseStringPromise } from 'xml2js';
-import { mergeSources } from './catalog';
+import { mergeSources, normalizeCategory } from './catalog';
 import { FeedItem, FeedSource } from './types';
 
 const parser = new Parser({
@@ -46,6 +46,10 @@ async function readDiskCache(): Promise<CacheState | null> {
     const raw = await readFile(/* turbopackIgnore: true */ cacheFilePath(), 'utf8');
     const parsed = JSON.parse(raw) as CacheState;
     if (!parsed || !Array.isArray(parsed.items) || typeof parsed.time !== 'number') return null;
+    parsed.items = parsed.items.map((item) => ({
+      ...item,
+      category: normalizeCategory(item.category),
+    }));
     return parsed;
   } catch {
     return null;
@@ -136,7 +140,7 @@ async function fetchOPML(): Promise<FeedSource[]> {
       feeds.push({
         url: outline.$.xmlUrl,
         title: outline.$.title || outline.$.text || 'Unknown',
-        category: parentCategory || outline.$.category || '其他',
+        category: normalizeCategory(parentCategory || outline.$.category),
       });
     }
     if (outline.outline) {
@@ -374,7 +378,7 @@ export function filterItems(
 ): FeedItem[] {
   let next = items;
   if (category && category !== '全部' && category !== 'All') {
-    next = next.filter((item) => item.category === category);
+    next = next.filter((item) => normalizeCategory(item.category) === category);
   }
   if (query) {
     const q = query.toLowerCase();
