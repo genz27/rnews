@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         ok: snapshot.ok,
         failed: snapshot.failed,
       },
+      cachedAt: snapshot.time,
     };
 
     return NextResponse.json(response, {

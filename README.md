@@ -1,39 +1,59 @@
-# RSS NEWS
+# RSS News
 
-纯文字 RSS 信息流：把技术社区、AI、科技媒体、大厂博客和主机/VPS 源聚合成一行一条的推文列表。
+深色极简的纯文字 RSS 信息流。打开页面先读服务器缓存，后台再刷新订阅源。
 
 ## 本地运行
 
 ```bash
 npm install
-npm run dev
-```
-
-打开 [http://localhost:3000](http://localhost:3000)。首次拉取全部订阅源大约需要几秒，之后会缓存 15 分钟。
-
-开发模式依赖 WebSocket 做热更新。如果页面是通过预览代理打开的，控制台里的 `_next/hmr` 失败可以忽略，不影响阅读。正式预览或部署请用生产模式：
-
-```bash
 npm run build
 npm start
 ```
 
+开发：
+
+```bash
+npm run dev
+```
+
+打开 [http://localhost:3000](http://localhost:3000)。
+
+## 缓存
+
+聚合结果会写入磁盘，默认 20 分钟刷新一次：
+
+- 本地 / VPS：`.data/rss-cache.json`
+- Vercel：`/tmp/rss-cache.json`
+- 可用环境变量 `RSS_CACHE_PATH` 覆盖路径
+
+有缓存时，打开网站会立刻出内容，不会每次都重新抓 100+ 个源。进程在跑时也会后台定时刷新。
+
+手动刷新：
+
+```bash
+curl http://localhost:3000/api/refresh
+```
+
+如果设置了 `CRON_SECRET`：
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/refresh
+```
+
+VPS 可用 crontab，例如每 20 分钟：
+
+```
+*/20 * * * * curl -fsS http://127.0.0.1:3000/api/refresh >/dev/null
+```
+
 ## 部署到 Vercel
 
-1. 把仓库导入 [Vercel](https://vercel.com/new)
-2. Framework Preset 选 Next.js，直接 Deploy
-3. 可选环境变量：
-   - `OPML_URL`：覆盖默认 OPML（默认 `https://raw.githubusercontent.com/JackyST0/awesome-rsshub-routes/main/feeds.opml`）
+1. 导入项目，Framework 选 Next.js
+2. 可选环境变量：`OPML_URL`、`RSS_CACHE_PATH`、`CRON_SECRET`
+3. 建议在 Vercel Cron 里每 20 分钟请求 `/api/refresh`
 
-`/api/feed` 的 `maxDuration` 已设为 60 秒，避免首次聚合超时。
+无状态 Serverless 上缓存不如 VPS 稳。长期跑请用 `next start` 放在自己的机器上。
 
 ## 订阅源
 
-内置 111 条源（OPML 98 条 + 主机/VPS 增补），分类：
-
-- 技术社区、AI 专题、科技媒体、大厂技术博客
-- 前端 & 设计、编程语言官方博客、技术周刊
-- 安全资讯、开发工具版本追踪、RSS 工具更新
-- 新闻/学术、主机/VPS（NodeLoc / LowEndTalk / Reddit 等）
-
-部分站点会 403/429，页面会显示可用条数和失败源数量，不会整页空白。
+内置 OPML 约 98 条，再加主机/VPS 增补。分类包括技术社区、AI 专题、科技媒体、大厂技术博客、前端 & 设计、编程语言、周刊、安全、工具版本、RSS 工具、新闻/学术、主机/VPS。

@@ -1,0 +1,5 @@
+export async function register() {
+  if (process.env.NEXT_RUNTIME !== 'nodejs') return;
+  const { warmupFeeds } = await import('@/lib/rss');
+  void warmupFeeds();
+}

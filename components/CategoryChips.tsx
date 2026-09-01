@@ -8,15 +8,15 @@ interface CategoryChipsProps {
 
 export function CategoryChips({ categories, selected, onSelect }: CategoryChipsProps) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+    <div className="flex gap-x-4 gap-y-2 overflow-x-auto pb-1 scrollbar-hide">
       {categories.map((category) => (
         <button
           key={category}
           onClick={() => onSelect(category)}
-          className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition-all ${
+          className={`shrink-0 text-[13px] transition-colors duration-200 ${
             selected === category
-              ? 'bg-rose-500 text-white shadow-md shadow-rose-500/25'
-              : 'bg-white text-zinc-600 hover:bg-rose-50 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+              ? 'text-zinc-900 dark:text-zinc-50'
+              : 'text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200'
           }`}
         >
           {category}

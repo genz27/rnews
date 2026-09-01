@@ -17,6 +17,7 @@ export interface FeedResponse {
     ok: number;
     failed: number;
   };
+  cachedAt?: number;
 }
 
 export interface FeedSource {

@@ -9,18 +9,35 @@ interface FeedProps {
   category: string;
   searchQuery: string;
   refreshKey: number;
+  initialItems?: FeedItem[];
+  initialTotal?: number;
+  initialHasMore?: boolean;
+  initialStats?: FeedResponse['stats'];
+  initialCachedAt?: number;
 }
 
-export function Feed({ category, searchQuery, refreshKey }: FeedProps) {
-  const [items, setItems] = useState<FeedItem[]>([]);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(true);
+export function Feed({
+  category,
+  searchQuery,
+  refreshKey,
+  initialItems = [],
+  initialTotal = 0,
+  initialHasMore = false,
+  initialStats,
+  initialCachedAt,
+}: FeedProps) {
+  const hasInitial = initialItems.length > 0 && category === '全部' && !searchQuery && refreshKey === 0;
+  const [items, setItems] = useState<FeedItem[]>(hasInitial ? initialItems : []);
+  const [hasMore, setHasMore] = useState(hasInitial ? initialHasMore : true);
+  const [loading, setLoading] = useState(!hasInitial);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [total, setTotal] = useState(0);
-  const [stats, setStats] = useState<FeedResponse['stats']>();
-  const cursorRef = useRef(0);
+  const [total, setTotal] = useState(hasInitial ? initialTotal : 0);
+  const [stats, setStats] = useState<FeedResponse['stats']>(initialStats);
+  const [cachedAt, setCachedAt] = useState(initialCachedAt);
+  const cursorRef = useRef(hasInitial ? initialItems.length : 0);
   const requestIdRef = useRef(0);
+  const skipNextReset = useRef(hasInitial);
   const { ref, inView } = useInView({ rootMargin: '800px' });
 
   const loadPage = useCallback(
@@ -58,6 +75,7 @@ export function Feed({ category, searchQuery, refreshKey }: FeedProps) {
         cursorRef.current = data.nextCursor ?? cursorRef.current + nextItems.length;
         setTotal(data.total ?? 0);
         setStats(data.stats);
+        setCachedAt(data.cachedAt);
         setError(null);
       } catch (err) {
         if (requestIdRef.current !== requestId) return;
@@ -74,6 +92,10 @@ export function Feed({ category, searchQuery, refreshKey }: FeedProps) {
   );
 
   useEffect(() => {
+    if (skipNextReset.current) {
+      skipNextReset.current = false;
+      return;
+    }
     void loadPage(true);
   }, [loadPage]);
 
@@ -83,13 +105,17 @@ export function Feed({ category, searchQuery, refreshKey }: FeedProps) {
     }
   }, [inView, hasMore, loading, loadingMore, items.length, loadPage]);
 
+  const cacheLabel = cachedAt
+    ? `缓存于 ${formatCacheAge(cachedAt)}`
+    : null;
+
   if (error && items.length === 0 && !loading) {
     return (
-      <div className="px-4 py-16 text-center">
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">{error}</p>
+      <div className="py-16 text-center">
+        <p className="text-sm text-zinc-500">{error}</p>
         <button
           onClick={() => void loadPage(true)}
-          className="mt-4 rounded-full bg-rose-500 px-5 py-2 text-sm font-medium text-white hover:bg-rose-600"
+          className="mt-4 text-sm text-zinc-500 transition hover:text-zinc-900 dark:hover:text-zinc-100"
         >
           重新加载
         </button>
@@ -99,11 +125,9 @@ export function Feed({ category, searchQuery, refreshKey }: FeedProps) {
 
   if (loading && items.length === 0) {
     return (
-      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        <p className="border-b border-zinc-200 px-4 py-3 text-sm text-zinc-500 dark:border-zinc-800">
-          正在聚合订阅源…
-        </p>
-        {Array.from({ length: 12 }).map((_, index) => (
+      <div>
+        <p className="mb-2 text-xs text-zinc-500">正在读取订阅缓存…</p>
+        {Array.from({ length: 10 }).map((_, index) => (
           <FeedRowSkeleton key={index} />
         ))}
       </div>
@@ -111,31 +135,31 @@ export function Feed({ category, searchQuery, refreshKey }: FeedProps) {
   }
 
   if (!loading && items.length === 0) {
-    return (
-      <div className="px-4 py-16 text-center text-sm text-zinc-500">
-        这个分类暂时没有内容，换个关键词或分类试试。
-      </div>
-    );
+    return <p className="py-16 text-center text-sm text-zinc-500">这个分类暂时没有内容。</p>;
   }
 
   return (
-    <>
-      {stats && (
-        <p className="mb-3 px-1 text-xs text-zinc-500">
-          已展示 {items.length}/{total} 条
-          {stats.ok ? ` · ${stats.ok}/${stats.sources} 个源可用` : ''}
-          {stats.failed ? ` · ${stats.failed} 个源暂时失败` : ''}
-        </p>
-      )}
-      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        {items.map((item, index) => (
-          <FeedRow key={`${item.id}-${index}`} item={item} />
-        ))}
-        <div ref={ref} className="flex justify-center py-5">
-          {loadingMore && <span className="text-sm text-zinc-500">正在加载更多</span>}
-          {!hasMore && items.length > 0 && <span className="text-sm text-zinc-400">已经到底了</span>}
-        </div>
+    <div className="animate-in">
+      <p className="mb-1 text-xs text-zinc-500">
+        {items.length}/{total}
+        {stats?.ok ? ` · ${stats.ok}/${stats.sources} 源` : ''}
+        {cacheLabel ? ` · ${cacheLabel}` : ''}
+      </p>
+      {items.map((item, index) => (
+        <FeedRow key={`${item.id}-${index}`} item={item} />
+      ))}
+      <div ref={ref} className="flex justify-center py-8">
+        {loadingMore && <span className="text-xs text-zinc-500">加载更多</span>}
+        {!hasMore && items.length > 0 && <span className="text-xs text-zinc-600">已经到底了</span>}
       </div>
-    </>
+    </div>
   );
+}
+
+function formatCacheAge(cachedAt: number) {
+  const minutes = Math.max(0, Math.round((Date.now() - cachedAt) / 60000));
+  if (minutes < 1) return '刚刚';
+  if (minutes < 60) return `${minutes} 分钟前`;
+  const hours = Math.round(minutes / 60);
+  return `${hours} 小时前`;
 }

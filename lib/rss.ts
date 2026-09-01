@@ -1,3 +1,5 @@
+import { mkdir, readFile, writeFile } from 'fs/promises';
+import path from 'path';
 import Parser from 'rss-parser';
 import { parseStringPromise } from 'xml2js';
 import { mergeSources } from './catalog';
@@ -14,12 +16,12 @@ const OPML_URL =
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 RSSNews/1.0';
 
-const FRESH_MS = 15 * 60 * 1000;
-const STALE_MS = 45 * 60 * 1000;
+const FRESH_MS = 20 * 60 * 1000;
+const STALE_MS = 6 * 60 * 60 * 1000;
 const FEED_TIMEOUT_MS = 7000;
 const CONCURRENCY = 28;
 
-type CacheState = {
+export type CacheState = {
   items: FeedItem[];
   time: number;
   ok: number;
@@ -31,6 +33,59 @@ type CacheState = {
 let cache: CacheState | null = null;
 let inflight: Promise<CacheState> | null = null;
 let sourceCache: { sources: FeedSource[]; time: number } | null = null;
+let diskLoaded = false;
+
+function cacheFilePath() {
+  if (process.env.RSS_CACHE_PATH) return process.env.RSS_CACHE_PATH;
+  if (process.env.VERCEL) return path.join('/tmp', 'rss-cache.json');
+  return path.join(process.cwd(), '.data', 'rss-cache.json');
+}
+
+async function readDiskCache(): Promise<CacheState | null> {
+  try {
+    const raw = await readFile(/* turbopackIgnore: true */ cacheFilePath(), 'utf8');
+    const parsed = JSON.parse(raw) as CacheState;
+    if (!parsed || !Array.isArray(parsed.items) || typeof parsed.time !== 'number') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function writeDiskCache(state: CacheState) {
+  try {
+    const file = cacheFilePath();
+    await mkdir(/* turbopackIgnore: true */ path.dirname(file), { recursive: true });
+    await writeFile(/* turbopackIgnore: true */ file, JSON.stringify(state));
+  } catch (error) {
+    console.warn('Failed to persist RSS cache:', error instanceof Error ? error.message : error);
+  }
+}
+
+async function ensureDiskLoaded() {
+  if (diskLoaded) return;
+  diskLoaded = true;
+  if (cache?.items.length) return;
+  const fromDisk = await readDiskCache();
+  if (fromDisk?.items.length) cache = fromDisk;
+}
+
+export function ensureBackgroundRefresh() {
+  const globalState = globalThis as typeof globalThis & { __rssRefreshTimer?: ReturnType<typeof setInterval> };
+  if (globalState.__rssRefreshTimer) return;
+  globalState.__rssRefreshTimer = setInterval(() => {
+    void fetchAllFeeds({ force: true });
+  }, FRESH_MS);
+}
+
+export async function warmupFeeds() {
+  await ensureDiskLoaded();
+  ensureBackgroundRefresh();
+  const age = cache ? Date.now() - cache.time : Number.POSITIVE_INFINITY;
+  if (!cache?.items.length || age > FRESH_MS) {
+    void fetchAllFeeds({ force: Boolean(cache?.items.length) });
+  }
+}
 
 export function getCachedStats() {
   return cache
@@ -229,6 +284,7 @@ async function refreshAll(): Promise<CacheState> {
       sources: sources.length,
       partial: false,
     };
+    await writeDiskCache(cache);
     return cache;
   }
 
@@ -241,6 +297,7 @@ async function refreshAll(): Promise<CacheState> {
     sources: sources.length,
     partial: rest.length > 0,
   };
+  await writeDiskCache(cache);
 
   if (rest.length === 0) {
     cache.partial = false;
@@ -257,15 +314,17 @@ async function refreshAll(): Promise<CacheState> {
     partial: false,
   };
   cache = state;
+  await writeDiskCache(state);
   return state;
 }
 
 export async function fetchAllFeeds(options?: { force?: boolean }): Promise<CacheState> {
   const force = options?.force ?? false;
+  await ensureDiskLoaded();
 
-  if (!force && cache && cache.items.length > 0 && !cache.partial) {
+  if (!force && cache && cache.items.length > 0) {
     const age = Date.now() - cache.time;
-    if (age < FRESH_MS) return cache;
+    if (age < FRESH_MS && !cache.partial) return cache;
     if (age < STALE_MS) {
       if (!inflight) {
         const pending = refreshAll();
