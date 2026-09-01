@@ -20,6 +20,7 @@ interface FeedProps {
   onCachedAt?: (cachedAt?: number) => void;
   onSource?: (source: string) => void;
   onCategory?: (category: string) => void;
+  onPrefetch?: (prefetch: (category: string) => void) => void;
 }
 
 const EXCLUDE_WINDOW = 80;
@@ -31,10 +32,23 @@ type CachedPage = {
   stats?: FeedResponse['stats'];
   cachedAt?: number;
   cursor: number;
+  enterFrom: number;
 };
 
 function pageKey(category: string, query: string) {
   return query ? `q:${category}:${query}` : `c:${category}`;
+}
+
+function toPage(data: FeedResponse, items: FeedItem[], cursor: number, enterFrom: number): CachedPage {
+  return {
+    items,
+    hasMore: Boolean(data.hasMore),
+    total: data.total ?? 0,
+    stats: data.stats,
+    cachedAt: data.cachedAt,
+    cursor,
+    enterFrom,
+  };
 }
 
 export function Feed({
@@ -51,31 +65,34 @@ export function Feed({
   onCachedAt,
   onSource,
   onCategory,
+  onPrefetch,
 }: FeedProps) {
-  const recommend = category === '推荐' && !searchQuery;
-  const bootRef = useRef({ category, searchQuery });
-  const hasInitial =
-    initialItems.length > 0 &&
-    refreshKey === 0 &&
-    category === bootRef.current.category &&
-    searchQuery === bootRef.current.searchQuery;
-  const [items, setItems] = useState<FeedItem[]>(hasInitial ? initialItems : []);
-  const [hasMore, setHasMore] = useState(hasInitial ? initialHasMore : true);
-  const [loading, setLoading] = useState(!hasInitial);
+  const bootKey = pageKey(category, searchQuery);
+  const [pages, setPages] = useState<Record<string, CachedPage>>(() => {
+    if (initialItems.length === 0) return {};
+    return {
+      [bootKey]: {
+        items: initialItems,
+        hasMore: initialHasMore,
+        total: initialTotal,
+        stats: initialStats,
+        cachedAt: initialCachedAt,
+        cursor: initialItems.length,
+        enterFrom: initialItems.length,
+      },
+    };
+  });
+  const [loadingKey, setLoadingKey] = useState<string | null>(
+    initialItems.length > 0 ? null : bootKey
+  );
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [total, setTotal] = useState(hasInitial ? initialTotal : 0);
-  const [stats, setStats] = useState<FeedResponse['stats']>(initialStats);
-  const [enterFrom, setEnterFrom] = useState(hasInitial ? initialItems.length : 0);
   const [refreshing, setRefreshing] = useState(false);
-  const cursorRef = useRef(hasInitial ? initialItems.length : 0);
+
+  const pagesRef = useRef(pages);
+  pagesRef.current = pages;
+  const inflightRef = useRef(new Set<string>());
   const requestIdRef = useRef(0);
-  const skipNextReset = useRef(hasInitial);
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
-  const pageCacheRef = useRef(new Map<string, CachedPage>());
-  const prevSearchRef = useRef(searchQuery);
-  const prevCategoryRef = useRef(category);
   const prevRefreshRef = useRef(refreshKey);
   const onRefreshedRef = useRef(onRefreshed);
   onRefreshedRef.current = onRefreshed;
@@ -83,189 +100,163 @@ export function Feed({
   onCachedAtRef.current = onCachedAt;
   const { ref, inView } = useInView({ rootMargin: '800px' });
 
-  if (hasInitial && !pageCacheRef.current.has(pageKey(bootRef.current.category, bootRef.current.searchQuery))) {
-    pageCacheRef.current.set(pageKey(bootRef.current.category, bootRef.current.searchQuery), {
-      items: initialItems,
-      hasMore: initialHasMore,
-      total: initialTotal,
-      stats: initialStats,
-      cachedAt: initialCachedAt,
-      cursor: initialItems.length,
-    });
-  }
+  const activeKey = pageKey(category, searchQuery);
+  const recommend = category === '推荐' && !searchQuery;
+  const activePage = pages[activeKey];
 
-  const showPage = useCallback((entry: CachedPage, animate: boolean) => {
-    setItems(entry.items);
-    setHasMore(entry.hasMore);
-    setTotal(entry.total);
-    setStats(entry.stats);
-    setEnterFrom(animate ? 0 : entry.items.length);
-    cursorRef.current = entry.cursor;
-    onCachedAtRef.current?.(entry.cachedAt);
-    setError(null);
-    setLoading(false);
-    setLoadingMore(false);
-    setRefreshing(false);
+  const paintedKeyRef = useRef(activePage ? activeKey : '');
+  if (activePage) paintedKeyRef.current = activeKey;
+  const paintedKey = activePage ? activeKey : paintedKeyRef.current;
+
+  const putPage = useCallback((key: string, page: CachedPage) => {
+    setPages((prev) => {
+      const next = { ...prev, [key]: page };
+      pagesRef.current = next;
+      return next;
+    });
   }, []);
 
-  const remember = useCallback(
-    (key: string, data: FeedResponse, nextItems: FeedItem[], cursor: number) => {
-      pageCacheRef.current.set(key, {
-        items: nextItems,
-        hasMore: Boolean(data.hasMore),
-        total: data.total ?? 0,
-        stats: data.stats,
-        cachedAt: data.cachedAt,
-        cursor,
+  const fetchFeed = useCallback(
+    async (nextCategory: string, query: string, cursor: number, refresh: boolean) => {
+      const isRecommend = nextCategory === '推荐' && !query;
+      const params = new URLSearchParams({ cursor: String(cursor) });
+      if (nextCategory && nextCategory !== '全部') params.set('category', nextCategory);
+      if (query) params.set('q', query);
+      if (refresh) params.set('refresh', '1');
+      if (isRecommend) {
+        params.set('seed', String(Date.now()));
+        const current = pagesRef.current[pageKey(nextCategory, query)];
+        const excludeIds = current?.items.slice(-EXCLUDE_WINDOW).map((item) => item.id) ?? [];
+        if (excludeIds.length > 0) params.set('exclude', excludeIds.join(','));
+      }
+      const response = await fetch(`/api/feed?${params.toString()}`, {
+        cache: isRecommend || refresh ? 'no-store' : 'default',
       });
+      const data = (await response.json()) as FeedResponse & { error?: string };
+      if (!response.ok) throw new Error(data.error || '订阅源暂时不可用');
+      return data;
     },
     []
   );
 
   const loadPage = useCallback(
-    async (reset: boolean) => {
-      const searchChanged = prevSearchRef.current !== searchQuery;
-      const refreshChanged = prevRefreshRef.current !== refreshKey;
-      const categoryChanged = prevCategoryRef.current !== category;
-      const shouldScroll = reset && (categoryChanged || refreshChanged) && !searchChanged;
-      prevSearchRef.current = searchQuery;
-      prevCategoryRef.current = category;
-      prevRefreshRef.current = refreshKey;
+    async (
+      nextCategory: string,
+      query: string,
+      mode: 'reset' | 'append' | 'prefetch',
+      forceRefresh = false
+    ) => {
+      const key = pageKey(nextCategory, query);
+      const inflightKey = mode === 'append' ? `${key}:more` : key;
+      if (inflightRef.current.has(inflightKey)) return;
+      if (mode === 'prefetch' && pagesRef.current[key]?.items.length) return;
 
-      const key = pageKey(category, searchQuery);
-      if (refreshChanged) pageCacheRef.current.clear();
+      const requestId = mode === 'prefetch' ? requestIdRef.current : ++requestIdRef.current;
 
-      if (reset && !refreshChanged) {
-        const cached = pageCacheRef.current.get(key);
-        if (cached?.items.length) {
-          showPage(cached, false);
-          if (shouldScroll) window.scrollTo({ top: 0, behavior: 'instant' });
-          return;
-        }
-      }
-
-      const requestId = reset ? requestIdRef.current + 1 : requestIdRef.current;
-      requestIdRef.current = requestId;
-
-      if (reset) {
-        if (itemsRef.current.length > 0) setRefreshing(true);
-        else setLoading(true);
-        setError(null);
-        cursorRef.current = 0;
-        if (shouldScroll) window.scrollTo({ top: 0, behavior: 'instant' });
-      } else {
-        setLoadingMore(true);
-      }
-
-      const seed = Date.now();
-      const excludeIds = recommend
-        ? itemsRef.current.slice(-EXCLUDE_WINDOW).map((item) => item.id)
-        : [];
+      inflightRef.current.add(inflightKey);
+      if (mode === 'reset' && !pagesRef.current[key]) setLoadingKey(key);
+      if (mode === 'reset' && forceRefresh) setRefreshing(true);
+      if (mode === 'append') setLoadingMore(true);
+      if (mode !== 'prefetch') setError(null);
 
       try {
-        const params = new URLSearchParams({
-          cursor: String(reset ? 0 : cursorRef.current),
-        });
-        if (category && category !== '全部') params.set('category', category);
-        if (searchQuery) params.set('q', searchQuery);
-        if (refreshKey > 0 && reset) params.set('refresh', '1');
-        if (recommend) {
-          params.set('seed', String(seed));
-          if (excludeIds.length > 0) params.set('exclude', excludeIds.join(','));
-        }
-
-        const response = await fetch(`/api/feed?${params.toString()}`, {
-          cache: recommend || refreshKey > 0 ? 'no-store' : 'default',
-        });
-        const data = (await response.json()) as FeedResponse & { error?: string };
-        if (requestIdRef.current !== requestId) return;
-
-        if (!response.ok) {
-          throw new Error(data.error || '订阅源暂时不可用');
-        }
+        const existing = pagesRef.current[key];
+        const cursor = mode === 'append' ? existing?.cursor ?? 0 : 0;
+        const data = await fetchFeed(nextCategory, query, cursor, forceRefresh);
+        if (mode !== 'prefetch' && requestIdRef.current !== requestId) return;
 
         const nextItems = data.items || [];
-        if (reset) {
-          setEnterFrom(0);
-          setItems(nextItems);
-          remember(key, data, nextItems, data.nextCursor ?? nextItems.length);
-          if (refreshChanged) onRefreshedRef.current?.();
-        } else {
-          const from = itemsRef.current.length;
-          setEnterFrom(from);
-          setItems((prev) => {
-            const seen = new Set(prev.map((item) => item.id));
-            const unique = nextItems.filter((item) => !seen.has(item.id));
-            const merged = unique.length === 0 ? [...prev, ...nextItems] : [...prev, ...unique];
-            remember(key, data, merged, data.nextCursor ?? cursorRef.current + nextItems.length);
-            return merged;
-          });
+        if (mode === 'append' && existing) {
+          const seen = new Set(existing.items.map((item) => item.id));
+          const unique = nextItems.filter((item) => !seen.has(item.id));
+          const merged = unique.length === 0 ? [...existing.items, ...nextItems] : [...existing.items, ...unique];
+          putPage(
+            key,
+            toPage(data, merged, data.nextCursor ?? cursor + nextItems.length, existing.items.length)
+          );
+        } else if (!pagesRef.current[key] || mode === 'reset') {
+          putPage(
+            key,
+            toPage(data, nextItems, data.nextCursor ?? nextItems.length, nextItems.length)
+          );
         }
-        setHasMore(Boolean(data.hasMore));
-        cursorRef.current = data.nextCursor ?? cursorRef.current + nextItems.length;
-        setTotal(data.total ?? 0);
-        setStats(data.stats);
-        onCachedAtRef.current?.(data.cachedAt);
-        setError(null);
+        if (mode === 'reset' && forceRefresh) onRefreshedRef.current?.();
+        if (key === pageKey(nextCategory, query)) onCachedAtRef.current?.(data.cachedAt);
       } catch (err) {
+        if (mode === 'prefetch') return;
         if (requestIdRef.current !== requestId) return;
         setError(err instanceof Error ? err.message : '加载失败');
-        if (reset && itemsRef.current.length === 0) setItems([]);
       } finally {
-        if (requestIdRef.current === requestId) {
-          setLoading(false);
+        inflightRef.current.delete(inflightKey);
+        if (mode !== 'prefetch' && requestIdRef.current === requestId) {
+          setLoadingKey((current) => (current === key ? null : current));
           setLoadingMore(false);
           setRefreshing(false);
         }
+        if (mode === 'prefetch') {
+          setLoadingKey((current) => (current === key ? null : current));
+        }
       }
     },
-    [category, recommend, refreshKey, remember, searchQuery, showPage]
+    [fetchFeed, putPage]
+  );
+
+  const prefetch = useCallback(
+    (nextCategory: string) => {
+      void loadPage(nextCategory, '', 'prefetch');
+    },
+    [loadPage]
   );
 
   useEffect(() => {
-    if (skipNextReset.current) {
-      skipNextReset.current = false;
+    onPrefetch?.(prefetch);
+  }, [onPrefetch, prefetch]);
+
+  useEffect(() => {
+    const refreshChanged = prevRefreshRef.current !== refreshKey;
+    prevRefreshRef.current = refreshKey;
+    if (refreshChanged) {
+      inflightRef.current.clear();
+      pagesRef.current = {};
+      setPages({});
+    }
+
+    const key = pageKey(category, searchQuery);
+    if (!refreshChanged && pagesRef.current[key]) {
+      onCachedAtRef.current?.(pagesRef.current[key].cachedAt);
       return;
     }
-    void loadPage(true);
-  }, [loadPage]);
+    void loadPage(category, searchQuery, 'reset', refreshChanged);
+  }, [category, loadPage, refreshKey, searchQuery]);
 
   useEffect(() => {
-    if (inView && hasMore && !loading && !loadingMore && !refreshing && items.length > 0) {
-      void loadPage(false);
+    if (inView && activePage?.hasMore && !loadingMore && !refreshing && !loadingKey && activePage.items.length > 0) {
+      void loadPage(category, searchQuery, 'append');
     }
-  }, [inView, hasMore, loading, loadingMore, refreshing, items.length, loadPage]);
+  }, [activePage, category, inView, loadPage, loadingKey, loadingMore, refreshing, searchQuery]);
 
   useEffect(() => {
-    onBusyChange?.(loading || refreshing);
-  }, [loading, onBusyChange, refreshing]);
+    const run = () => {
+      getCatalogCategories().forEach((name) => prefetch(name));
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(run);
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(run, 1);
+    return () => window.clearTimeout(id);
+  }, [prefetch]);
 
   useEffect(() => {
-    const categories = getCatalogCategories();
-    const timer = window.setTimeout(() => {
-      categories.forEach((name) => {
-        const key = pageKey(name, '');
-        if (pageCacheRef.current.has(key)) return;
-        const params = new URLSearchParams();
-        if (name && name !== '全部') params.set('category', name);
-        void fetch(`/api/feed?${params.toString()}`, { cache: name === '推荐' ? 'no-store' : 'default' })
-          .then((response) => response.json() as Promise<FeedResponse>)
-          .then((data) => {
-            if (!data.items?.length || pageCacheRef.current.has(key)) return;
-            remember(key, data, data.items, data.nextCursor ?? data.items.length);
-          })
-          .catch(() => undefined);
-      });
-    }, 120);
-    return () => window.clearTimeout(timer);
-  }, [remember]);
+    onBusyChange?.(refreshing);
+  }, [onBusyChange, refreshing]);
 
-  if (error && items.length === 0 && !loading) {
+  if (error && Object.keys(pages).length === 0) {
     return (
       <div className="animate-in py-16 text-center">
         <p className="text-sm text-zinc-500">{error}</p>
         <button
-          onClick={() => void loadPage(true)}
+          onClick={() => void loadPage(category, searchQuery, 'reset')}
           className="mt-4 text-sm text-zinc-500 transition hover:text-zinc-900 dark:hover:text-zinc-100"
         >
           重新加载
@@ -274,65 +265,79 @@ export function Feed({
     );
   }
 
-  if (loading && items.length === 0) {
-    return (
-      <div className="animate-in">
-        <p className="mb-2 text-xs text-zinc-500">正在读取订阅缓存…</p>
-        {Array.from({ length: 10 }).map((_, index) => (
-          <FeedRowSkeleton key={index} />
-        ))}
-      </div>
-    );
-  }
-
-  if (!loading && items.length === 0) {
-    return (
-      <p className="animate-in py-16 text-center text-sm text-zinc-500">
-        {searchQuery
-          ? `没有找到「${searchQuery}」，试试别的关键词，或点来源名称筛选。`
-          : recommend
-            ? '今天还没有新内容，稍后再刷一次。'
-            : '这个分类暂时没有内容。'}
-      </p>
-    );
-  }
+  const showSkeleton = !activePage && !paintedKey;
+  const keys = Object.keys(pages);
 
   return (
     <div>
-      <p className="mb-3 text-[13px] text-zinc-500 transition-opacity duration-300">
-        {searchQuery
-          ? `找到 ${total} 条 · 「${searchQuery}」`
-          : recommend
-            ? `今日 ${total} 条 · 下滑或点刷新换一批`
-            : `${items.length}/${total}`}
-        {stats?.ok ? ` · ${stats.ok}/${stats.sources} 源` : ''}
-      </p>
-      <div className="feed-list">
-        {items.map((item, index) => (
-          <FeedRow
-            key={`${item.id}-${index}`}
-            item={item}
-            enter={index >= enterFrom}
-            delay={Math.min(Math.max(index - enterFrom, 0), 12) * 32}
-            query={searchQuery}
-            onSource={onSource}
-            onCategory={onCategory}
-          />
-        ))}
-      </div>
-      <div ref={ref} className="flex justify-center py-8">
-        {loadingMore && (
-          <span className="loading-dots flex items-center gap-1.5 text-xs text-zinc-500">
-            <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
-            <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
-            <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
-            <span className="ml-2">{recommend ? '换一批' : '加载更多'}</span>
-          </span>
-        )}
-        {!hasMore && items.length > 0 && !recommend && (
-          <span className="animate-in text-xs text-zinc-600">已经到底了</span>
-        )}
-      </div>
+      {showSkeleton ? (
+        <div className="animate-in">
+          <p className="mb-2 text-xs text-zinc-500">正在读取订阅缓存…</p>
+          {Array.from({ length: 10 }).map((_, index) => (
+            <FeedRowSkeleton key={index} />
+          ))}
+        </div>
+      ) : null}
+
+      {keys.map((key) => {
+        const page = pages[key];
+        const active = key === paintedKey && Boolean(pages[paintedKey]);
+        return (
+          <section key={key} hidden={!active} aria-hidden={!active}>
+            <p className="mb-3 text-[13px] text-zinc-500">
+              {searchQuery && active
+                ? `找到 ${page.total} 条 · 「${searchQuery}」`
+                : key === 'c:推荐'
+                  ? `今日 ${page.total} 条 · 下滑或点刷新换一批`
+                  : `${page.items.length}/${page.total}`}
+              {page.stats?.ok ? ` · ${page.stats.ok}/${page.stats.sources} 源` : ''}
+            </p>
+            <div>
+              {page.items.map((item, index) => (
+                <FeedRow
+                  key={`${item.id}-${index}`}
+                  item={item}
+                  enter={active && index >= page.enterFrom}
+                  delay={Math.min(Math.max(index - page.enterFrom, 0), 12) * 32}
+                  query={active ? searchQuery : ''}
+                  onSource={onSource}
+                  onCategory={onCategory}
+                />
+              ))}
+            </div>
+            {active ? (
+              <div ref={ref} className="flex justify-center py-8">
+                {loadingMore && (
+                  <span className="loading-dots flex items-center gap-1.5 text-xs text-zinc-500">
+                    <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
+                    <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
+                    <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
+                    <span className="ml-2">{recommend ? '换一批' : '加载更多'}</span>
+                  </span>
+                )}
+                {!page.hasMore && page.items.length > 0 && !recommend && (
+                  <span className="animate-in text-xs text-zinc-600">已经到底了</span>
+                )}
+                {error && page.items.length > 0 ? (
+                  <span className="text-xs text-zinc-500">{error}</span>
+                ) : null}
+              </div>
+            ) : (
+              <div className="h-8" />
+            )}
+          </section>
+        );
+      })}
+
+      {!showSkeleton && activePage && activePage.items.length === 0 ? (
+        <p className="animate-in py-16 text-center text-sm text-zinc-500">
+          {searchQuery
+            ? `没有找到「${searchQuery}」，试试别的关键词，或点来源名称筛选。`
+            : recommend
+              ? '今天还没有新内容，稍后再刷一次。'
+              : '这个分类暂时没有内容。'}
+        </p>
+      ) : null}
     </div>
   );
 }

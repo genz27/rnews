@@ -7,15 +7,28 @@ type SideNavProps = {
   categories: string[];
   selected?: string;
   onSelect?: (category: string) => void;
+  onPrefetch?: (category: string) => void;
   docsActive?: boolean;
 };
 
-export function SideNav({ categories, selected = '', onSelect, docsActive = false }: SideNavProps) {
+export function SideNav({
+  categories,
+  selected = '',
+  onSelect,
+  onPrefetch,
+  docsActive = false,
+}: SideNavProps) {
   return (
     <div className="sticky top-28">
       <p className="mb-3 px-3 text-xs tracking-wide text-zinc-400">分类</p>
       {onSelect ? (
-        <CategoryChips layout="stack" categories={categories} selected={selected} onSelect={onSelect} />
+        <CategoryChips
+          layout="stack"
+          categories={categories}
+          selected={selected}
+          onSelect={onSelect}
+          onPrefetch={onPrefetch}
+        />
       ) : (
         <nav className="flex flex-col gap-1">
           {categories.map((category) => (

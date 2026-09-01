@@ -11,7 +11,7 @@ import { Toast } from '@/components/Toast';
 import { getCatalogCategories } from '@/lib/catalog';
 import { formatUpdatedAt } from '@/lib/time';
 import { FeedItem, FeedResponse } from '@/lib/types';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 
 const CATEGORY_KEY = 'rnews-category';
 
@@ -44,6 +44,15 @@ export function HomeView({
   const [cachedAt, setCachedAt] = useState(initialCachedAt);
   const [now, setNow] = useState(() => Date.now());
   const searchRef = useRef<HTMLInputElement>(null);
+  const prefetchRef = useRef<(category: string) => void>(() => undefined);
+
+  const handleRegisterPrefetch = useCallback((prefetch: (category: string) => void) => {
+    prefetchRef.current = prefetch;
+  }, []);
+
+  const handlePrefetch = useCallback((category: string) => {
+    prefetchRef.current(category);
+  }, []);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 30000);
@@ -98,10 +107,12 @@ export function HomeView({
 
   const handleSelectCategory = useCallback(
     (category: string, push = true) => {
-      setSelectedCategory(category);
-      setSearchQuery('');
       window.localStorage.setItem(CATEGORY_KEY, category);
       writeUrl(category, '', push);
+      startTransition(() => {
+        setSelectedCategory(category);
+        setSearchQuery('');
+      });
     },
     [writeUrl]
   );
@@ -278,6 +289,7 @@ export function HomeView({
               categories={categories}
               selected={selectedCategory}
               onSelect={handleSelectCategory}
+              onPrefetch={handlePrefetch}
             />
             <Link
               href="/docs"
@@ -295,6 +307,7 @@ export function HomeView({
             categories={categories}
             selected={selectedCategory}
             onSelect={handleSelectCategory}
+            onPrefetch={handlePrefetch}
           />
         </aside>
         <main id="feed" className="min-w-0">
@@ -312,6 +325,7 @@ export function HomeView({
             onCachedAt={setCachedAt}
             onSource={handleSource}
             onCategory={(category) => handleSelectCategory(category)}
+            onPrefetch={handleRegisterPrefetch}
           />
         </main>
       </div>

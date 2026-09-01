@@ -4,6 +4,7 @@ interface CategoryChipsProps {
   categories: string[];
   selected: string;
   onSelect: (category: string) => void;
+  onPrefetch?: (category: string) => void;
   layout?: 'row' | 'stack';
 }
 
@@ -11,6 +12,7 @@ export function CategoryChips({
   categories,
   selected,
   onSelect,
+  onPrefetch,
   layout = 'row',
 }: CategoryChipsProps) {
   const activeIndex = Math.max(0, categories.indexOf(selected));
@@ -27,6 +29,7 @@ export function CategoryChips({
           <button
             key={category}
             onClick={() => onSelect(category)}
+            onPointerEnter={() => onPrefetch?.(category)}
             className={`relative z-10 h-9 rounded-md px-3 text-left text-sm transition-colors duration-200 ${
               selected === category
                 ? 'text-zinc-900 dark:text-zinc-50'
@@ -47,6 +50,7 @@ export function CategoryChips({
         <button
           key={category}
           onClick={() => onSelect(category)}
+          onPointerEnter={() => onPrefetch?.(category)}
           className={`relative shrink-0 pb-1 text-sm transition-colors duration-200 ${
               selected === category
                 ? 'text-zinc-900 dark:text-zinc-50'
