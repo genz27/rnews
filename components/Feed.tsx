@@ -140,7 +140,7 @@ export function Feed({
 
   return (
     <div className="animate-in">
-      <p className="mb-1 text-xs text-zinc-500">
+      <p className="mb-3 text-[13px] text-zinc-500">
         {items.length}/{total}
         {stats?.ok ? ` · ${stats.ok}/${stats.sources} 源` : ''}
         {cacheLabel ? ` · ${cacheLabel}` : ''}
