@@ -6,7 +6,7 @@ import { FeedResponse } from '@/lib/types';
 const ITEMS_PER_PAGE = 40;
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {

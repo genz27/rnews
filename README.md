@@ -50,11 +50,23 @@ VPS 可用 crontab，例如每 20 分钟：
 
 ## 部署到 Vercel
 
-1. 导入项目，Framework 选 Next.js
-2. 可选环境变量：`OPML_URL`、`RSS_CACHE_PATH`、`CRON_SECRET`
-3. 建议在 Vercel Cron 里每 20 分钟请求 `/api/refresh`
+项目已带 `vercel.json`（Hobby 每天 UTC 4:00 调一次 `/api/refresh`）。
 
-无状态 Serverless 上缓存不如 VPS 稳。长期跑请用 `next start` 放在自己的机器上。
+**方式一：Git 导入（推荐，长期用）**
+
+1. 把代码放到 GitHub / GitLab
+2. 打开 [vercel.com/new](https://vercel.com/new)，导入该仓库，Framework 选 Next.js
+3. 可选环境变量：`OPML_URL`、`CRON_SECRET`
+4. Pro 计划可以把 cron 改成 `*/20 * * * *`，缓存会更及时
+
+**方式二：命令行**
+
+```bash
+npx vercel login
+npx vercel --prod
+```
+
+无状态 Serverless 上 `/tmp` 缓存会随实例回收。第一次打开会现场拉源，之后同一实例会复用缓存。长期更稳的做法是用 `next start` 放在自己的机器上。
 
 ## 订阅源
 

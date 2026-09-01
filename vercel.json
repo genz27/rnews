@@ -1,7 +1,10 @@
 {
-  "functions": {
-    "app/api/feed/route.ts": {
-      "maxDuration": 60
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/refresh",
+      "schedule": "0 4 * * *"
     }
-  }
+  ]
 }

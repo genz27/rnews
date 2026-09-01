@@ -79,6 +79,7 @@ async function ensureDiskLoaded() {
 }
 
 export function ensureBackgroundRefresh() {
+  if (process.env.VERCEL) return;
   const globalState = globalThis as typeof globalThis & { __rssRefreshTimer?: ReturnType<typeof setInterval> };
   if (globalState.__rssRefreshTimer) return;
   globalState.__rssRefreshTimer = setInterval(() => {
