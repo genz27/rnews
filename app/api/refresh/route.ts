@@ -18,9 +18,11 @@ export async function GET(request: NextRequest) {
     if (blocked) return blocked;
   }
 
-  const snapshot = await fetchAllFeeds({ wait: true });
+  const managedSnapshot = Boolean(process.env.VERCEL);
+  const snapshot = await fetchAllFeeds({ wait: !managedSnapshot });
   return NextResponse.json({
     ok: true,
+    mode: managedSnapshot ? 'repository-snapshot' : 'live-refresh',
     total: snapshot.items.length,
     sources: snapshot.sources,
     succeeded: snapshot.ok,

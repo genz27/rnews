@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { HomeView } from '@/components/HomeView';
 import { CATEGORY_COOKIE, readCategoryCookie } from '@/lib/category-pref';
 import { getCatalogCategories } from '@/lib/catalog';
+import { compactFeedPages } from '@/lib/feed-bootstrap';
 import { buildInitialPages, buildPage, pageKey } from '@/lib/feed-page';
 import { ensureBackgroundRefresh, fetchAllFeeds, scheduleFeedRefresh } from '@/lib/rss';
 
@@ -30,30 +31,18 @@ export default async function Page({ searchParams }: PageProps) {
   if (query) {
     initialPages[pageKey(category, query)] = buildPage(snapshot.items, category, query);
   }
-
-  const active =
-    initialPages[pageKey(category, query)] ||
-    initialPages[pageKey(category)] ||
-    initialPages[pageKey('推荐')] || {
-      items: [],
-      hasMore: false,
-      total: 0,
-      cursor: 0,
-    };
+  const stats = {
+    sources: snapshot.sources,
+    ok: snapshot.ok,
+    failed: snapshot.failed,
+  };
+  const bootstrap = compactFeedPages(initialPages, snapshot.time, stats);
 
   return (
     <HomeView
-      initialPages={initialPages}
-      initialItems={active.items}
-      initialTotal={active.total}
-      initialHasMore={active.hasMore}
+      initialBootstrap={bootstrap}
       initialCategory={category}
       initialQuery={query}
-      initialStats={{
-        sources: snapshot.sources,
-        ok: snapshot.ok,
-        failed: snapshot.failed,
-      }}
       initialCachedAt={snapshot.time}
     />
   );

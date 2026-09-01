@@ -1,6 +1,6 @@
 # Rnews
 
-深色极简的纯文字 RSS 信息流。打开页面先读服务器缓存，后台再刷新订阅源。
+深色极简的纯文字 RSS 信息流。页面只读取预生成快照，抓源和翻译都在后台完成。
 
 ## 本地运行
 
@@ -20,13 +20,14 @@ npm run dev
 
 ## 缓存
 
-聚合结果会写入磁盘。每次把订阅源抓完就写一次（优先源先写一版，全部源完成再写一版）。默认 20 分钟后才会再抓：
+聚合结果会写入磁盘。每次把订阅源抓完就写一次（优先源先写一版，全部源完成再写一版）：
 
 - 本地 / VPS：`.data/rss-cache.json`，进程活着时每 20 分钟后台刷新
-- Vercel：`/tmp/rss-cache.json`，实例回收后缓存和译文都会丢，下次请求再重建
+- Vercel：直接读取仓库里的 `data/rss-cache.json` 和 `data/translations.json`
+- GitHub Actions：每小时第 7、37 分钟刷新快照，提交后触发 Vercel 自动部署
 - 可用环境变量 `RSS_CACHE_PATH` 覆盖路径
 
-有缓存时，打开网站和点刷新都会立刻读缓存，不会卡住去重抓 100+ 个源。
+打开网站、点刷新和调用 API 都只读快照，不会在用户请求里抓 100+ 个源或调用翻译服务。
 
 英文标题只在后台抓源之后翻译：本地写入 `.data/rss-translations.json`，并回写进条目缓存。部署里还带一份 `data/translations.json` 种子，打开页面、点刷新、调用 API 都只读缓存，不会让用户请求去打翻译接口。纯中文或中英混杂的标题不会送去翻译。产品名、版本号等翻出来和原文一样的，也不显示第二行。
 
@@ -50,12 +51,7 @@ VPS 可用 crontab，例如每 20 分钟：
 
 ## 部署到 Vercel
 
-项目已带 `vercel.json`，可直接导入。
-
-认领到自己的账号后，在 Vercel 项目 Settings → Cron Jobs 加上：
-
-- Hobby：`0 4 * * *`（每天一次，UTC 4:00）访问 `/api/refresh`
-- Pro：`*/20 * * * *`（每 20 分钟）
+项目已带 `vercel.json` 和 `.github/workflows/refresh-cache.yml`。GitHub Actions 负责持久快照，不需要配置 Vercel Cron。
 
 **方式一：Git 导入（推荐，长期用）**
 
@@ -71,7 +67,7 @@ npx vercel login
 npx vercel --prod
 ```
 
-无状态 Serverless 上 `/tmp` 缓存会随实例回收。第一次打开会现场拉源，之后同一实例会复用缓存。长期更稳的做法是用 `next start` 放在自己的机器上。
+无状态 Serverless 实例只读取随部署发布的快照，因此冷启动也不会现场抓源。浏览器还会用 Cache Storage 保存最近一版分类数据。
 
 ## 订阅源
 

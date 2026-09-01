@@ -23,6 +23,7 @@ export function setTranslationSink(fn: () => void) {
 }
 
 function storePath() {
+  if (process.env.TRANSLATION_CACHE_PATH) return process.env.TRANSLATION_CACHE_PATH;
   if (process.env.VERCEL) return '/tmp/rss-translations.json';
   return path.join(process.cwd(), '.data', 'rss-translations.json');
 }

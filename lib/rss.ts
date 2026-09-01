@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import Parser from 'rss-parser';
 import { parseStringPromise } from 'xml2js';
+import bundledSnapshot from '@/data/rss-cache.json';
 import { mergeSources, normalizeCategory } from './catalog';
 import { applyTranslation, isEnglishTitle, loadTranslations, lookupTranslation, setTranslationSink, translateTitles } from './translate';
 import { FeedItem, FeedSource } from './types';
@@ -62,12 +63,11 @@ function cacheFilePath() {
   return path.join(process.cwd(), '.data', 'rss-cache.json');
 }
 
-async function readDiskCache(): Promise<CacheState | null> {
-  try {
-    const raw = await readFile(/* turbopackIgnore: true */ cacheFilePath(), 'utf8');
-    const parsed = JSON.parse(raw) as CacheState;
-    if (!parsed || !Array.isArray(parsed.items) || typeof parsed.time !== 'number') return null;
-    parsed.items = parsed.items.map((item) => {
+function normalizeCache(state: CacheState): CacheState | null {
+  if (!state || !Array.isArray(state.items) || typeof state.time !== 'number') return null;
+  return {
+    ...state,
+    items: state.items.map((item) => {
       const snippet = item.snippet ? finalizeSnippet(item.snippet, item.title) : undefined;
       const next = {
         ...item,
@@ -76,10 +76,16 @@ async function readDiskCache(): Promise<CacheState | null> {
       if (snippet) next.snippet = snippet;
       else delete next.snippet;
       return applyTranslation(next);
-    });
-    return parsed;
+    }),
+  };
+}
+
+async function readDiskCache(): Promise<CacheState | null> {
+  try {
+    const raw = await readFile(/* turbopackIgnore: true */ cacheFilePath(), 'utf8');
+    return normalizeCache(JSON.parse(raw) as CacheState);
   } catch {
-    return null;
+    return normalizeCache(bundledSnapshot as CacheState);
   }
 }
 
@@ -497,6 +503,9 @@ function startRefresh() {
 }
 
 export function scheduleFeedRefresh(force = false) {
+  // Production snapshots are refreshed by GitHub Actions and deployed atomically.
+  // Never make a visitor's serverless invocation crawl every upstream feed.
+  if (process.env.VERCEL) return;
   if (!force && cache && cache.items.length > 0 && !needsRefresh(cache)) return;
   startRefresh();
 }

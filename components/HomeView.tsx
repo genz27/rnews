@@ -11,28 +11,20 @@ import { Toast } from '@/components/Toast';
 import { persistCategory } from '@/lib/category-pref';
 import { getCatalogCategories } from '@/lib/catalog';
 import { formatUpdatedAt } from '@/lib/time';
-import { FeedItem, FeedResponse, InitialFeedPage } from '@/lib/types';
+import { FeedBootstrap } from '@/lib/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface HomeViewProps {
-  initialPages?: Record<string, InitialFeedPage>;
-  initialItems: FeedItem[];
-  initialTotal: number;
-  initialHasMore: boolean;
+  initialBootstrap: FeedBootstrap;
   initialCategory?: string;
   initialQuery?: string;
-  initialStats?: FeedResponse['stats'];
   initialCachedAt?: number;
 }
 
 export function HomeView({
-  initialPages,
-  initialItems,
-  initialTotal,
-  initialHasMore,
+  initialBootstrap,
   initialCategory = '推荐',
   initialQuery = '',
-  initialStats,
   initialCachedAt,
 }: HomeViewProps) {
   const categories = getCatalogCategories();
@@ -228,7 +220,7 @@ export function HomeView({
       >
         跳到内容
       </a>
-      <header className="sticky top-0 z-20 border-b border-zinc-200/80 bg-zinc-50/80 backdrop-blur-xl dark:border-white/[0.06] dark:bg-zinc-950/80">
+      <header className="sticky top-0 z-20 border-b border-zinc-200/80 bg-zinc-50/95 dark:border-white/[0.06] dark:bg-zinc-950/95 lg:bg-zinc-50/80 lg:backdrop-blur-lg lg:dark:bg-zinc-950/80">
         {busy ? (
           <div className="progress-bar text-zinc-900 dark:text-zinc-100">
             <div className="progress-bar-run" />
@@ -304,12 +296,7 @@ export function HomeView({
             category={selectedCategory}
             searchQuery={searchQuery}
             refreshKey={refreshKey}
-            initialPages={initialPages}
-            initialItems={initialItems}
-            initialTotal={initialTotal}
-            initialHasMore={initialHasMore}
-            initialStats={initialStats}
-            initialCachedAt={initialCachedAt}
+            initialBootstrap={initialBootstrap}
             onBusyChange={handleBusy}
             onRefreshed={handleRefreshed}
             onCachedAt={setCachedAt}

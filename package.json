@@ -6,13 +6,13 @@
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",
-    "lint": "eslint"
+    "lint": "eslint",
+    "refresh:snapshot": "tsx scripts/refresh-snapshot.ts"
   },
   "dependencies": {
     "next": "16.3.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "react-intersection-observer": "^11.0.1",
     "rss-parser": "^3.13.0",
     "xml2js": "^0.6.2"
   },
@@ -25,6 +25,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }

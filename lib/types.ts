@@ -29,6 +29,21 @@ export interface InitialFeedPage {
   cursor: number;
 }
 
+export interface FeedBootstrapPage {
+  itemIndexes: number[];
+  hasMore: boolean;
+  total: number;
+  cursor: number;
+}
+
+export interface FeedBootstrap {
+  version: 1;
+  cachedAt?: number;
+  stats?: FeedResponse['stats'];
+  items: FeedItem[];
+  pages: Record<string, FeedBootstrapPage>;
+}
+
 export interface FeedSource {
   url: string;
   title: string;
