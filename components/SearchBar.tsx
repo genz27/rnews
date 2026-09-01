@@ -7,7 +7,7 @@ interface SearchBarProps {
   placeholder?: string;
 }
 
-export function SearchBar({ onSearch, placeholder = 'Search...' }: SearchBarProps) {
+export function SearchBar({ onSearch, placeholder = '搜索标题或来源' }: SearchBarProps) {
   const [query, setQuery] = useState('');
 
   useEffect(() => {

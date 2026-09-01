@@ -13,10 +13,10 @@ export function CategoryChips({ categories, selected, onSelect }: CategoryChipsP
         <button
           key={category}
           onClick={() => onSelect(category)}
-          className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+          className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition-all ${
             selected === category
-              ? 'bg-pink-500 text-white shadow-md scale-105'
-              : 'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-700'
+              ? 'bg-rose-500 text-white shadow-md shadow-rose-500/25'
+              : 'bg-white text-zinc-600 hover:bg-rose-50 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
           }`}
         >
           {category}

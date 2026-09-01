@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/feed/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

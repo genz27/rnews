@@ -1,50 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchAllFeeds } from '@/lib/rss-parser';
+import { fetchAllFeeds, filterItems } from '@/lib/rss';
 import { FeedResponse } from '@/lib/types';
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 24;
 
-export const revalidate = 1800; // 30 minutes
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const cursor = parseInt(searchParams.get('cursor') || '0');
+    const cursor = Math.max(0, parseInt(searchParams.get('cursor') || '0', 10) || 0);
     const category = searchParams.get('category') || '';
     const query = searchParams.get('q') || '';
+    const force = searchParams.get('refresh') === '1';
 
-    let items = await fetchAllFeeds();
-    
-    if (category && category !== 'All') {
-      items = items.filter(item => 
-        item.category?.toLowerCase() === category.toLowerCase()
-      );
-    }
-    
-    if (query) {
-      const lowerQuery = query.toLowerCase();
-      items = items.filter(item =>
-        item.title.toLowerCase().includes(lowerQuery) ||
-        item.source.toLowerCase().includes(lowerQuery)
-      );
-    }
-    
-    const startIndex = cursor;
+    const snapshot = await fetchAllFeeds({ force });
+    const items = filterItems(snapshot.items, category, query);
+
     const endIndex = cursor + ITEMS_PER_PAGE;
-    const paginatedItems = items.slice(startIndex, endIndex);
+    const paginatedItems = items.slice(cursor, endIndex);
     const hasMore = endIndex < items.length;
 
     const response: FeedResponse = {
       items: paginatedItems,
       hasMore,
-      nextCursor: hasMore ? endIndex : undefined
+      nextCursor: hasMore ? endIndex : undefined,
+      total: items.length,
+      stats: {
+        sources: snapshot.sources,
+        ok: snapshot.ok,
+        failed: snapshot.failed,
+      },
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=600',
+      },
+    });
   } catch (error) {
     console.error('Error in feed API:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch feeds' },
+      { error: '订阅源暂时不可用，请稍后重试', items: [], hasMore: false, total: 0 },
       { status: 500 }
     );
   }

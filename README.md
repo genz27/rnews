@@ -1,168 +1,37 @@
-# RSS NEWS 📰
+# RSS NEWS
 
-A beautiful, mobile-first RSS news aggregator with Xiaohongshu (小红书) style infinite-scroll card feed. Aggregates multiple RSS feeds into a continuous waterfall/masonry layout.
+小红书风格的 RSS 瀑布流新闻站：把技术社区、AI、科技媒体、大厂博客和主机/VPS 源聚合成无限滚动卡片流。
 
-![RSS News](https://img.shields.io/badge/Next.js-16-black) ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue) ![Tailwind](https://img.shields.io/badge/Tailwind-3-38bdf8)
-
-## Features ✨
-
-- **Infinite Scroll**: Seamless infinite scrolling with automatic loading
-- **Masonry Layout**: Responsive waterfall grid (2 cols mobile, 3-4 desktop)
-- **Category Filtering**: Filter by content categories with smooth chip navigation
-- **Search**: Real-time client-side search by title and source
-- **Dark Mode**: Beautiful light/dark theme with system preference detection
-- **Mobile-First**: Optimized for mobile with smooth touch interactions
-- **Smart Caching**: Aggressive 30-minute server-side caching to minimize feed requests
-- **Multi-Source**: Aggregates 100+ RSS feeds from tech, AI, design, security, and VPS/hosting
-
-## Tech Stack 🛠️
-
-- **Framework**: Next.js 16 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **RSS Parsing**: rss-parser + xml2js
-- **UI Libraries**: react-masonry-css, react-intersection-observer
-- **Date Handling**: date-fns with i18n support
-
-## Getting Started 🚀
-
-### Prerequisites
-
-- Node.js 18+ 
-- npm or pnpm
-
-### Local Development
-
-1. **Clone the repository**
-
-```bash
-git clone <your-repo-url>
-cd <your-repo-name>
-```
-
-2. **Install dependencies**
+## 本地运行
 
 ```bash
 npm install
-```
-
-3. **Run development server**
-
-```bash
 npm run dev
 ```
 
-4. **Open your browser**
-
-Navigate to [http://localhost:3000](http://localhost:3000)
-
-### Build for Production
+打开 [http://localhost:3000](http://localhost:3000)。首次拉取全部订阅源大约需要几秒，之后会缓存 15 分钟。
 
 ```bash
 npm run build
 npm start
 ```
 
-## Deploy to Vercel 🚢
+## 部署到 Vercel
 
-This project is optimized for Vercel deployment.
+1. 把仓库导入 [Vercel](https://vercel.com/new)
+2. Framework Preset 选 Next.js，直接 Deploy
+3. 可选环境变量：
+   - `OPML_URL`：覆盖默认 OPML（默认 `https://raw.githubusercontent.com/JackyST0/awesome-rsshub-routes/main/feeds.opml`）
 
-### Option 1: One-Click Deploy
+`/api/feed` 的 `maxDuration` 已设为 60 秒，避免首次聚合超时。
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=<your-repo-url>)
+## 订阅源
 
-### Option 2: Manual Deploy
+内置 111 条源（OPML 98 条 + 主机/VPS 增补），分类：
 
-1. **Install Vercel CLI**
+- 技术社区、AI 专题、科技媒体、大厂技术博客
+- 前端 & 设计、编程语言官方博客、技术周刊
+- 安全资讯、开发工具版本追踪、RSS 工具更新
+- 新闻/学术、主机/VPS（NodeLoc / LowEndTalk / Reddit 等）
 
-```bash
-npm i -g vercel
-```
-
-2. **Deploy**
-
-```bash
-vercel
-```
-
-3. **Follow the prompts** to link/create your project
-
-### Option 3: Git Integration
-
-1. Push your code to GitHub/GitLab/Bitbucket
-2. Import project in [Vercel Dashboard](https://vercel.com/new)
-3. Vercel will auto-detect Next.js and deploy
-
-## Configuration ⚙️
-
-### Environment Variables (Optional)
-
-Create `.env.local` for custom configuration:
-
-```env
-# Custom OPML URL (default: https://raw.githubusercontent.com/JackyST0/awesome-rsshub-routes/main/feeds.opml)
-OPML_URL=https://your-custom-opml-url.com/feeds.opml
-```
-
-### Content Sources
-
-**Primary OPML**: [awesome-rsshub-routes](https://github.com/JackyST0/awesome-rsshub-routes)
-
-**Additional VPS/Hosting Feeds**:
-- NodeLoc (Latest & Top)
-- LowEndTalk (Discussions, Offers, Requests)
-- LowEndSpirit
-- WebHostingTalk
-- HostAdvice
-- Reddit (r/VPS, r/webhosting, r/HomeNetworking)
-
-Categories include: Tech Communities, AI, Tech Media, Big Tech Blogs, Frontend/Design, Language Blogs, Weeklies, Security, Tools, RSS Tools, News, Academia, and VPS/Hosting.
-
-## Project Structure 📁
-
-```
-├── app/
-│   ├── api/
-│   │   ├── feed/          # Paginated feed API
-│   │   └── categories/    # Categories list API
-│   ├── layout.tsx         # Root layout with metadata
-│   ├── page.tsx           # Main page (client component)
-│   └── globals.css        # Global styles
-├── components/
-│   ├── Feed.tsx           # Main feed with infinite scroll
-│   ├── FeedCard.tsx       # Individual card component
-│   ├── CategoryChips.tsx  # Category filter chips
-│   ├── SearchBar.tsx      # Search input
-│   └── ThemeToggle.tsx    # Dark mode toggle
-├── lib/
-│   ├── types.ts           # TypeScript interfaces
-│   └── rss-parser.ts      # RSS/OPML parsing logic
-└── public/                # Static assets
-```
-
-## Performance Optimization 🎯
-
-- **Server-Side Caching**: 30-minute revalidation on API routes
-- **Image Optimization**: Next.js Image component with responsive sizes
-- **Lazy Loading**: Intersection Observer for infinite scroll
-- **Debounced Search**: 300ms delay to reduce re-renders
-- **Deduplication**: Removes duplicate articles by ID/link
-
-## Browser Support 🌐
-
-- Chrome/Edge (latest)
-- Firefox (latest)
-- Safari (latest)
-- Mobile browsers (iOS Safari, Chrome Mobile)
-
-## License 📄
-
-MIT
-
-## Contributing 🤝
-
-Contributions welcome! Please open an issue or PR.
-
----
-
-Built with ❤️ using Next.js and deployed on Vercel
+部分站点会 403/429，页面会显示可用条数和失败源数量，不会整页空白。

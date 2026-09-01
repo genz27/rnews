@@ -1,27 +1,27 @@
 import { NextResponse } from 'next/server';
-import { fetchAllFeeds } from '@/lib/rss-parser';
+import { getCatalogCategories } from '@/lib/catalog';
+import { getSources } from '@/lib/rss';
 
-export const revalidate = 1800; // 30 minutes
+export const dynamic = 'force-dynamic';
+export const revalidate = 1800;
 
 export async function GET() {
   try {
-    const items = await fetchAllFeeds();
-    
-    const categories = new Set<string>();
-    items.forEach(item => {
-      if (item.category) {
-        categories.add(item.category);
-      }
-    });
-
+    const sources = await getSources();
+    const extras = new Set(
+      sources
+        .map((source) => source.category)
+        .filter((category) => category && !getCatalogCategories().includes(category))
+    );
     return NextResponse.json({
-      categories: ['All', ...Array.from(categories).sort()]
+      categories: [...getCatalogCategories(), ...Array.from(extras).sort()],
+      sourceCount: sources.length,
     });
   } catch (error) {
     console.error('Error fetching categories:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch categories' },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      categories: getCatalogCategories(),
+      sourceCount: 0,
+    });
   }
 }

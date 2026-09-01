@@ -13,15 +13,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RSS NEWS - Your Personalized Feed",
-  description: "A beautiful Xiaohongshu-style RSS news aggregator with infinite scroll",
+  title: "RSS NEWS",
+  description: "小红书风格的 RSS 瀑布流新闻站，聚合技术社区、AI、科技媒体与主机资讯。",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
+      lang="zh-CN"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
