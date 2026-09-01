@@ -6,7 +6,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Feed } from '@/components/Feed';
 import { getCatalogCategories } from '@/lib/catalog';
 import { FeedItem, FeedResponse } from '@/lib/types';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface HomeViewProps {
   initialItems: FeedItem[];
@@ -27,6 +27,7 @@ export function HomeView({
   const [selectedCategory, setSelectedCategory] = useState('推荐');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     fetch('/api/categories')
@@ -39,9 +40,27 @@ export function HomeView({
       .catch(() => undefined);
   }, []);
 
+  const handleBusy = useCallback((next: boolean) => {
+    setBusy(next);
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshKey((value) => value + 1);
+  }, []);
+
+  const handleSelectCategory = useCallback((category: string) => {
+    setSelectedCategory(category);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   return (
     <div className="min-h-svh">
       <header className="sticky top-0 z-20 border-b border-zinc-200/80 bg-zinc-50/80 backdrop-blur-xl dark:border-white/[0.06] dark:bg-zinc-950/80">
+        {busy ? (
+          <div className="progress-bar text-zinc-900 dark:text-zinc-100">
+            <div className="progress-bar-run" />
+          </div>
+        ) : null}
         <div className="mx-auto max-w-6xl px-5 py-4 lg:px-8 lg:py-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
@@ -53,14 +72,16 @@ export function HomeView({
               </p>
             </div>
             <div className="flex min-w-0 items-center gap-5 lg:w-[28rem]">
-              <div className="min-w-0 flex-1 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]">
+              <div className="min-w-0 flex-1 border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200">
                 <SearchBar onSearch={setSearchQuery} placeholder="搜索标题或来源" />
               </div>
               <button
                 type="button"
-                onClick={() => setRefreshKey((value) => value + 1)}
-                className="shrink-0 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+                onClick={handleRefresh}
+                disabled={busy}
+                className="inline-flex shrink-0 items-center gap-1.5 text-sm text-zinc-500 transition hover:text-zinc-800 disabled:opacity-60 dark:hover:text-zinc-200"
               >
+                <RefreshIcon spinning={busy} />
                 刷新
               </button>
               <span className="hidden text-zinc-300 sm:inline dark:text-zinc-700">·</span>
@@ -68,7 +89,11 @@ export function HomeView({
             </div>
           </div>
           <div className="mt-4 lg:hidden">
-            <CategoryChips categories={categories} selected={selectedCategory} onSelect={setSelectedCategory} />
+            <CategoryChips
+              categories={categories}
+              selected={selectedCategory}
+              onSelect={handleSelectCategory}
+            />
           </div>
         </div>
       </header>
@@ -81,7 +106,7 @@ export function HomeView({
               layout="stack"
               categories={categories}
               selected={selectedCategory}
-              onSelect={setSelectedCategory}
+              onSelect={handleSelectCategory}
             />
           </div>
         </aside>
@@ -95,9 +120,26 @@ export function HomeView({
             initialHasMore={initialHasMore}
             initialStats={initialStats}
             initialCachedAt={initialCachedAt}
+            onBusyChange={handleBusy}
           />
         </main>
       </div>
     </div>
+  );
+}
+
+function RefreshIcon({ spinning }: { spinning: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={`size-3.5 ${spinning ? 'spin' : ''}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden
+    >
+      <path d="M13.5 8a5.5 5.5 0 1 1-1.3-3.5" strokeLinecap="round" />
+      <path d="M13.5 2.5v3h-3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

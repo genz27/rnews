@@ -1,5 +1,5 @@
 .data
-.node_modules
+node_modules
 .next
 .git
 *.log

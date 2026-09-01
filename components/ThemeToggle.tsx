@@ -29,7 +29,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+      className="text-sm text-zinc-500 transition-colors duration-200 hover:text-zinc-800 dark:hover:text-zinc-200"
       aria-label="切换主题"
     >
       {theme === 'dark' ? '浅色' : '深色'}

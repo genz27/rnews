@@ -14,6 +14,7 @@ interface FeedProps {
   initialHasMore?: boolean;
   initialStats?: FeedResponse['stats'];
   initialCachedAt?: number;
+  onBusyChange?: (busy: boolean) => void;
 }
 
 const EXCLUDE_WINDOW = 80;
@@ -27,6 +28,7 @@ export function Feed({
   initialHasMore = false,
   initialStats,
   initialCachedAt,
+  onBusyChange,
 }: FeedProps) {
   const recommend = category === '推荐' && !searchQuery;
   const hasInitial =
@@ -39,6 +41,7 @@ export function Feed({
   const [total, setTotal] = useState(hasInitial ? initialTotal : 0);
   const [stats, setStats] = useState<FeedResponse['stats']>(initialStats);
   const [cachedAt, setCachedAt] = useState(initialCachedAt);
+  const [enterFrom, setEnterFrom] = useState(0);
   const cursorRef = useRef(hasInitial ? initialItems.length : 0);
   const requestIdRef = useRef(0);
   const skipNextReset = useRef(hasInitial);
@@ -55,6 +58,7 @@ export function Feed({
         setLoading(true);
         setError(null);
         cursorRef.current = 0;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         setLoadingMore(true);
       }
@@ -85,13 +89,19 @@ export function Feed({
         }
 
         const nextItems = data.items || [];
-        setItems((prev) => {
-          if (reset) return nextItems;
-          const seen = new Set(prev.map((item) => item.id));
-          const unique = nextItems.filter((item) => !seen.has(item.id));
-          if (unique.length === 0) return [...prev, ...nextItems];
-          return [...prev, ...unique];
-        });
+        if (reset) {
+          setEnterFrom(0);
+          setItems(nextItems);
+        } else {
+          const from = itemsRef.current.length;
+          setEnterFrom(from);
+          setItems((prev) => {
+            const seen = new Set(prev.map((item) => item.id));
+            const unique = nextItems.filter((item) => !seen.has(item.id));
+            if (unique.length === 0) return [...prev, ...nextItems];
+            return [...prev, ...unique];
+          });
+        }
         setHasMore(Boolean(data.hasMore));
         cursorRef.current = data.nextCursor ?? cursorRef.current + nextItems.length;
         setTotal(data.total ?? 0);
@@ -126,11 +136,16 @@ export function Feed({
     }
   }, [inView, hasMore, loading, loadingMore, items.length, loadPage]);
 
+  useEffect(() => {
+    onBusyChange?.(loading);
+  }, [loading, onBusyChange]);
+
   const cacheLabel = cachedAt ? `缓存于 ${formatCacheAge(cachedAt)}` : null;
+  const swapping = loading && items.length > 0;
 
   if (error && items.length === 0 && !loading) {
     return (
-      <div className="py-16 text-center">
+      <div className="animate-in py-16 text-center">
         <p className="text-sm text-zinc-500">{error}</p>
         <button
           onClick={() => void loadPage(true)}
@@ -144,7 +159,7 @@ export function Feed({
 
   if (loading && items.length === 0) {
     return (
-      <div>
+      <div className="animate-in">
         <p className="mb-2 text-xs text-zinc-500">正在读取订阅缓存…</p>
         {Array.from({ length: 10 }).map((_, index) => (
           <FeedRowSkeleton key={index} />
@@ -155,26 +170,40 @@ export function Feed({
 
   if (!loading && items.length === 0) {
     return (
-      <p className="py-16 text-center text-sm text-zinc-500">
+      <p className="animate-in py-16 text-center text-sm text-zinc-500">
         {recommend ? '今天还没有新内容，稍后再刷一次。' : '这个分类暂时没有内容。'}
       </p>
     );
   }
 
   return (
-    <div className="animate-in">
-      <p className="mb-3 text-[13px] text-zinc-500">
+    <div>
+      <p className="mb-3 text-[13px] text-zinc-500 transition-opacity duration-300">
         {recommend ? `今日 ${total} 条 · 下滑或点刷新换一批` : `${items.length}/${total}`}
         {stats?.ok ? ` · ${stats.ok}/${stats.sources} 源` : ''}
         {cacheLabel ? ` · ${cacheLabel}` : ''}
       </p>
-      {items.map((item, index) => (
-        <FeedRow key={`${item.id}-${index}`} item={item} />
-      ))}
+      <div className={`feed-list ${swapping ? 'feed-dim' : ''}`}>
+        {items.map((item, index) => (
+          <FeedRow
+            key={`${item.id}-${index}`}
+            item={item}
+            enter={index >= enterFrom}
+            delay={Math.min(Math.max(index - enterFrom, 0), 12) * 32}
+          />
+        ))}
+      </div>
       <div ref={ref} className="flex justify-center py-8">
-        {loadingMore && <span className="text-xs text-zinc-500">换一批…</span>}
+        {loadingMore && (
+          <span className="loading-dots flex items-center gap-1.5 text-xs text-zinc-500">
+            <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
+            <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
+            <span className="size-1 rounded-full bg-zinc-400 dark:bg-zinc-500" />
+            <span className="ml-2">{recommend ? '换一批' : '加载更多'}</span>
+          </span>
+        )}
         {!hasMore && items.length > 0 && !recommend && (
-          <span className="text-xs text-zinc-600">已经到底了</span>
+          <span className="animate-in text-xs text-zinc-600">已经到底了</span>
         )}
       </div>
     </div>
