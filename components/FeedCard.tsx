@@ -22,6 +22,9 @@ export const FeedRow = memo(function FeedRow({
 }: FeedRowProps) {
   const timeAgo = formatAgo(item.pubDate);
   const display = item.titleZh || item.title;
+  const original = item.titleZh && item.titleZh !== item.title ? item.title : '';
+  const snippet =
+    item.snippet && item.snippet !== display && item.snippet !== item.title ? item.snippet : '';
 
   return (
     <article
@@ -42,11 +45,24 @@ export const FeedRow = memo(function FeedRow({
             <Highlight text={display} query={query} />
           </a>
         </h2>
-        {item.titleZh && item.titleZh !== item.title && (
+        {original ? (
           <p className="mt-1 text-sm leading-6 text-zinc-500 transition-opacity duration-200 group-hover:text-zinc-400">
-            <Highlight text={item.title} query={query} />
+            <Highlight text={original} query={query} />
           </p>
-        )}
+        ) : null}
+        {snippet ? (
+          <p className="mt-1.5 line-clamp-2 text-[13px] leading-6 text-zinc-500 transition-colors duration-200 group-hover:text-zinc-600 dark:group-hover:text-zinc-400">
+            <a
+              href={item.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              tabIndex={-1}
+              className="outline-none"
+            >
+              <Highlight text={snippet} query={query} />
+            </a>
+          </p>
+        ) : null}
       </div>
       <p className="flex flex-wrap items-center gap-x-2 text-[13px] leading-6 text-zinc-500 sm:justify-end">
         <MetaButton
@@ -119,7 +135,11 @@ function Highlight({ text, query }: { text: string; query: string }) {
 export function FeedRowSkeleton() {
   return (
     <div className="grid gap-2 border-b border-zinc-200/80 py-5 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-baseline sm:gap-8 lg:py-6 dark:border-white/[0.06]">
-      <div className="skeleton-line h-5 w-4/5 rounded" />
+      <div className="min-w-0 space-y-2">
+        <div className="skeleton-line h-5 w-4/5 rounded" />
+        <div className="skeleton-line h-3.5 w-full rounded" />
+        <div className="skeleton-line h-3.5 w-2/3 rounded" />
+      </div>
       <div className="skeleton-line h-3.5 w-40 rounded sm:justify-self-end" />
     </div>
   );

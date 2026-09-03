@@ -251,7 +251,7 @@ export function HomeView({
                 <SearchBar
                   value={searchQuery}
                   onSearch={handleSearch}
-                  placeholder="搜索标题或来源"
+                  placeholder="搜索标题、摘要或来源"
                   inputRef={searchRef}
                 />
               </div>
@@ -333,7 +333,7 @@ export function HomeView({
               <li><Kbd>[</Kbd> <Kbd>]</Kbd> 切换分类</li>
               <li><Kbd>T</Kbd> 回到顶部 · <Kbd>Esc</Kbd> 关闭</li>
             </ul>
-            <p className="mt-4 text-xs text-zinc-400">点标题打开原文，点来源或分类即可筛选。</p>
+            <p className="mt-4 text-xs text-zinc-400">点标题或摘要打开原文，点来源或分类即可筛选。</p>
           </div>
         </div>
       ) : null}

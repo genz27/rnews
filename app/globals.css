@@ -110,7 +110,7 @@ body {
 
 .feed-row {
   content-visibility: auto;
-  contain-intrinsic-size: auto 5.5rem;
+  contain-intrinsic-size: auto 8.5rem;
 }
 
 .feed-row-enter {

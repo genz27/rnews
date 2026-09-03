@@ -53,7 +53,7 @@ export function SearchBar({
         }}
         placeholder={placeholder}
         className="w-full bg-transparent pr-8 text-sm text-zinc-800 outline-none placeholder:text-zinc-400 transition-colors duration-200 dark:text-zinc-200 dark:placeholder:text-zinc-600"
-        aria-label="搜索标题或来源"
+        aria-label="搜索标题、摘要或来源"
       />
       {query ? (
         <button

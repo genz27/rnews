@@ -322,6 +322,9 @@ function toSnippet(item: ParsedItem, title: string): string | undefined {
   return finalizeSnippet(raw, title);
 }
 
+const JUNK_SNIPPET =
+  /^(点击查看原文|查看原文|阅读全文|全文阅读|read more|continue reading|click here)$/i;
+
 export function finalizeSnippet(text: string, title: string): string | undefined {
   let next = stripHtml(text);
   if (!next) return undefined;
@@ -329,8 +332,14 @@ export function finalizeSnippet(text: string, title: string): string | undefined
   if (normalizedTitle && next.startsWith(normalizedTitle)) {
     next = next.slice(normalizedTitle.length);
   }
-  next = next.trim().replace(/^[\s\-—–:：|·,，、。;；"'“”‘’]+/, '');
+  next = next
+    .replace(/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}[ T]\d{1,2}:\d{2}(?::\d{2})?\s*/, '')
+    .replace(/^作者[：:]\s*\S+\s*/, '')
+    .trim()
+    .replace(/^[\s\-—–:：|·,，、。;；"'“”‘’]+/, '');
   if (!next || next.length < 4 || similarText(next, title)) return undefined;
+  const compact = next.replace(/[>\s.。…]+$/g, '').trim();
+  if (JUNK_SNIPPET.test(compact)) return undefined;
   return clipSnippet(next, 140);
 }
 
