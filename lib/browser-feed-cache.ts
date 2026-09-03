@@ -2,8 +2,8 @@
 
 import type { FeedBootstrap } from './types';
 
-const CACHE_NAME = 'rnews-feed-v2';
-const LEGACY_CACHE_NAMES = ['rnews-feed-v1'];
+const CACHE_NAME = 'rnews-feed-v3';
+const LEGACY_CACHE_NAMES = ['rnews-feed-v1', 'rnews-feed-v2'];
 const SNAPSHOT_URL = '/__rnews_feed_snapshot__';
 
 function hasMojibake(text: string): boolean {
