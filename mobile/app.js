@@ -3,6 +3,8 @@ const CATEGORIES = ['推荐', '全部', '社区', 'AI', '资讯', '工程', '主
 const TABS = ['推荐', '社区', 'AI', '资讯', '全部'];
 const PAGE = 30;
 
+const EXCLUDE_WINDOW = 80;
+
 const state = {
   category: '推荐',
   query: '',
@@ -111,27 +113,35 @@ async function load(reset) {
   }
   refreshBtn.classList.toggle('spin', true);
   try {
+    const recommend = state.category === '推荐' && !state.query;
     const params = new URLSearchParams({
       category: state.category,
       limit: String(PAGE),
       cursor: String(reset ? 0 : state.cursor),
     });
     if (state.query) params.set('q', state.query);
+    if (recommend) {
+      params.set('seed', String(Date.now()));
+      const seen = state.items.slice(-EXCLUDE_WINDOW).map((item) => item.id).filter(Boolean);
+      if (!reset && seen.length) params.set('exclude', seen.join(','));
+    }
     const response = await fetch(`${API}?${params}`, { cache: 'no-store' });
     const data = await response.json();
     if (!response.ok || data.ok === false) throw new Error(data.error || '加载失败');
-    const next = data.items || [];
+    const incoming = data.items || [];
+    const seenIds = new Set(reset ? [] : state.items.map((item) => item.id));
+    const next = incoming.filter((item) => !seenIds.has(item.id));
     state.items = reset ? next : state.items.concat(next);
     state.hasMore = Boolean(data.hasMore);
     state.cursor = data.nextCursor ?? state.items.length;
     status.textContent = state.query
       ? `找到 ${data.total || 0} 条 · 「${state.query}」`
-      : state.category === '推荐'
-        ? `今日 ${data.total || state.items.length} 条`
+      : recommend
+        ? `今日 ${data.total || state.items.length} 条 · 下滑或点刷新换一批`
         : `${state.items.length}/${data.total || state.items.length}`;
     if (data.cachedAt) updated.textContent = formatAgo(new Date(data.cachedAt).toISOString()) + '更新';
     renderItems(true);
-    more.textContent = state.hasMore ? '' : '已经到底了';
+    more.textContent = recommend ? '' : state.hasMore ? '' : '已经到底了';
   } catch (error) {
     more.textContent = error instanceof Error ? error.message : '加载失败';
     if (!state.items.length) list.innerHTML = `<p class="empty">暂时读不到内容，检查网络后再刷新。</p>`;
@@ -142,9 +152,9 @@ async function load(reset) {
 }
 
 function selectCategory(category) {
-  if (state.category === category && !state.query) return;
+  const same = state.category === category && !state.query;
+  if (same && category !== '推荐') return;
   state.category = category;
-  if (category !== '推荐') state.query = state.query;
   renderChrome();
   window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
   void load(true);

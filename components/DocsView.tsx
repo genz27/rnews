@@ -57,10 +57,12 @@ export function DocsView() {
           <Code>{`GET /api/v1/feed?category=AI&q=&limit=40&cursor=0`}</Code>
           <p className="mt-2">参数：</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li><code>category</code> 分类，默认 <code>全部</code>。<code>推荐</code> 为今日内容。</li>
+            <li><code>category</code> 分类，默认 <code>全部</code>。<code>推荐</code> 从今日内容里随机抽一批，刷新或下滑会换一批。</li>
             <li><code>q</code> 按标题、摘要或来源搜索</li>
             <li><code>limit</code> 每页条数，默认 40，最大 100</li>
-            <li><code>cursor</code> 偏移，从 0 开始</li>
+            <li><code>cursor</code> 偏移，从 0 开始。推荐流不用这个分页。</li>
+            <li><code>seed</code> 推荐流的随机种子，不传则每次现抽</li>
+            <li><code>exclude</code> 推荐流排除的条目 id，逗号分隔</li>
             <li><code>since</code> 只返回这个时间之后的条目，ISO 8601 或 Unix 时间戳。适合增量拉取，比较的是 <code>pubDate</code>，不含等于该时刻的条目。</li>
           </ul>
           <p className="mt-2">按发布时间倒序。英文标题若已在后台译好，会附带 <code>titleZh</code>。响应里的 <code>newestPubDate</code> 可以当作下一次请求的 <code>since</code>。</p>

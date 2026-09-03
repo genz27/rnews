@@ -96,13 +96,16 @@ export function HomeView({
 
   const handleSelectCategory = useCallback(
     (next: string, push = true) => {
-      if (next === selectedRef.current && !queryRef.current) return;
+      if (next === selectedRef.current && !queryRef.current) {
+        if (next === '推荐') handleRefresh();
+        return;
+      }
       persistCategory(next);
       writeUrl(next, '', push);
       setSelectedCategory(next);
       setSearchQuery('');
     },
-    [writeUrl]
+    [handleRefresh, writeUrl]
   );
 
   const focusSearch = useCallback(() => {

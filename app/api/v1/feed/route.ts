@@ -9,7 +9,7 @@ import {
   parseSince,
 } from '@/lib/public-api';
 import { rateLimit, attachRateLimitHeaders } from '@/lib/rate-limit';
-import { fetchAllFeeds, filterItems, scheduleFeedRefresh } from '@/lib/rss';
+import { fetchAllFeeds, filterItems, pickRandomItems, scheduleFeedRefresh } from '@/lib/rss';
 import { applyTranslation } from '@/lib/translate';
 
 export const dynamic = 'force-dynamic';
@@ -47,9 +47,17 @@ export async function GET(request: NextRequest) {
       ),
       since.ms
     );
-    const page = pool.slice(cursor, cursor + limit);
+    const recommend = category === '推荐' && !query;
+    const seed = search.get('seed') || String(Date.now());
+    const exclude = (search.get('exclude') || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
+    const page = recommend
+      ? pickRandomItems(pool, limit, seed, exclude)
+      : pool.slice(cursor, cursor + limit);
     const items = page.map((item) => applyTranslation(item));
-    const hasMore = cursor + limit < pool.length;
+    const hasMore = recommend ? pool.length > 0 : cursor + limit < pool.length;
     const sinceIso = since.ms != null ? new Date(since.ms).toISOString() : null;
 
     const response = jsonApi({
@@ -58,14 +66,14 @@ export async function GET(request: NextRequest) {
       total: pool.length,
       limit,
       cursor,
-      nextCursor: hasMore ? cursor + limit : null,
+      nextCursor: recommend ? cursor + items.length : hasMore ? cursor + limit : null,
       hasMore,
       category,
       query: query || null,
       since: sinceIso,
       newestPubDate: newestPubDate(items) || newestPubDate(pool),
       cachedAt: snapshot.time,
-    });
+    }, recommend ? { headers: { 'Cache-Control': 'no-store' } } : undefined);
     return attachRateLimitHeaders(response, request, { limit: LIMIT, name: 'v1' });
   } catch (error) {
     console.error('public feed API failed:', error);
