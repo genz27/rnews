@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { BackToTop } from '@/components/BackToTop';
+import { BottomNav } from '@/components/BottomNav';
 import { CategoryChips } from '@/components/CategoryChips';
 import { SideNav } from '@/components/SideNav';
 import { SearchBar } from '@/components/SearchBar';
@@ -34,9 +35,11 @@ export function HomeView({
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [help, setHelp] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(Boolean(initialQuery));
   const [cachedAt, setCachedAt] = useState(initialCachedAt);
   const [now, setNow] = useState(() => Date.now());
   const searchRef = useRef<HTMLInputElement>(null);
+  const desktopSearchRef = useRef<HTMLInputElement>(null);
   const prefetchRef = useRef<(category: string) => void>(() => undefined);
   const selectedRef = useRef(selectedCategory);
   const queryRef = useRef(searchQuery);
@@ -102,13 +105,27 @@ export function HomeView({
     [writeUrl]
   );
 
+  const focusSearch = useCallback(() => {
+    const mobile = window.matchMedia('(max-width: 1023px)').matches;
+    if (mobile) {
+      setSearchOpen(true);
+      window.setTimeout(() => {
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }, 20);
+      return;
+    }
+    desktopSearchRef.current?.focus();
+    desktopSearchRef.current?.select();
+  }, []);
+
   const handleSource = useCallback(
     (source: string) => {
       setSearchQuery(source);
       writeUrl(selectedCategory, source, false);
-      searchRef.current?.focus();
+      focusSearch();
     },
-    [selectedCategory, writeUrl]
+    [focusSearch, selectedCategory, writeUrl]
   );
 
   const handleRefreshed = useCallback(() => {
@@ -149,16 +166,14 @@ export function HomeView({
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        searchRef.current?.focus();
-        searchRef.current?.select();
+        focusSearch();
         return;
       }
       if (event.metaKey || event.ctrlKey || event.altKey) return;
 
       if (event.key === '/' && !isTyping(event.target)) {
         event.preventDefault();
-        searchRef.current?.focus();
-        searchRef.current?.select();
+        focusSearch();
         return;
       }
 
@@ -173,8 +188,9 @@ export function HomeView({
           setHelp(false);
           return;
         }
-        if (searchQuery || searchRef.current?.value) {
+        if (searchQuery || searchRef.current?.value || searchOpen) {
           handleSearch('');
+          setSearchOpen(false);
           searchRef.current?.blur();
           return;
         }
@@ -214,7 +230,7 @@ export function HomeView({
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [categories, handleRefresh, handleSearch, handleSelectCategory, help, searchQuery, selectedCategory]);
+  }, [categories, focusSearch, handleRefresh, handleSearch, handleSelectCategory, help, searchOpen, searchQuery, selectedCategory]);
 
   return (
     <div className="min-h-svh">
@@ -224,13 +240,68 @@ export function HomeView({
       >
         跳到内容
       </a>
-      <header className="sticky top-0 z-20 border-b border-zinc-200/80 bg-zinc-50/95 dark:border-white/[0.06] dark:bg-zinc-950/95 lg:bg-zinc-50/80 lg:backdrop-blur-lg lg:dark:bg-zinc-950/80">
+      <header className="sticky top-0 z-20 border-b border-zinc-200/80 bg-zinc-50/95 pt-[env(safe-area-inset-top)] dark:border-white/[0.06] dark:bg-zinc-950/95 lg:bg-zinc-50/80 lg:backdrop-blur-lg lg:dark:bg-zinc-950/80">
         {busy ? (
           <div className="progress-bar text-zinc-900 dark:text-zinc-100">
             <div className="progress-bar-run" />
           </div>
         ) : null}
-        <div className="mx-auto max-w-6xl px-5 py-4 lg:px-8 lg:py-5">
+        <div className="flex items-center gap-1 px-3 py-2 lg:hidden">
+          <h1 className="px-1 text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            <Link href="/">Rnews</Link>
+          </h1>
+          <p className="min-w-0 flex-1 truncate px-1 text-xs text-zinc-400">
+            {cachedAt ? formatUpdatedAt(cachedAt, now) : '聚合资讯'}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchOpen((open) => {
+                const next = !open;
+                if (next) window.setTimeout(() => searchRef.current?.focus(), 20);
+                return next;
+              });
+            }}
+            className="inline-flex size-9 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
+            aria-label="搜索"
+          >
+            <SearchIcon />
+          </button>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={busy}
+            title="刷新"
+            className="inline-flex size-9 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-60 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
+            aria-label="刷新"
+          >
+            <RefreshIcon spinning={busy} />
+          </button>
+          <ThemeToggle compact />
+        </div>
+        {searchOpen ? (
+          <div className="px-4 pb-2 lg:hidden">
+            <div className="rounded-full bg-zinc-100 px-4 py-2 dark:bg-white/[0.06]">
+              <SearchBar
+                value={searchQuery}
+                onSearch={handleSearch}
+                placeholder="搜索标题、摘要或来源"
+                inputRef={searchRef}
+              />
+            </div>
+          </div>
+        ) : null}
+        <div className="px-4 pb-2.5 lg:hidden">
+          <CategoryChips
+            layout="pills"
+            categories={categories}
+            selected={selectedCategory}
+            onSelect={handleSelectCategory}
+            onPrefetch={handlePrefetch}
+          />
+        </div>
+
+        <div className="mx-auto hidden max-w-6xl px-5 py-4 lg:block lg:px-8 lg:py-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
               <h1 className="text-xl font-semibold tracking-tight text-zinc-900 lg:text-2xl dark:text-zinc-50">
@@ -252,7 +323,7 @@ export function HomeView({
                   value={searchQuery}
                   onSearch={handleSearch}
                   placeholder="搜索标题、摘要或来源"
-                  inputRef={searchRef}
+                  inputRef={desktopSearchRef}
                 />
               </div>
               <button
@@ -269,24 +340,10 @@ export function HomeView({
               <ThemeToggle />
             </div>
           </div>
-          <div className="mt-4 lg:hidden">
-            <CategoryChips
-              categories={categories}
-              selected={selectedCategory}
-              onSelect={handleSelectCategory}
-              onPrefetch={handlePrefetch}
-            />
-            <Link
-              href="/docs"
-              className="mt-3 inline-block text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-            >
-              文档
-            </Link>
-          </div>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-6 lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:gap-16 lg:px-8 lg:py-10">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-4 pb-24 lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:gap-16 lg:px-8 lg:py-10 lg:pb-10">
         <aside className="hidden lg:block">
           <SideNav
             categories={categories}
@@ -311,6 +368,7 @@ export function HomeView({
         </main>
       </div>
 
+      <BottomNav selected={selectedCategory} onSelect={handleSelectCategory} />
       <BackToTop />
       <Toast message={toast} onDone={clearToast} />
 
@@ -349,11 +407,20 @@ function Kbd({ children }: { children: string }) {
   );
 }
 
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4 4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function RefreshIcon({ spinning }: { spinning: boolean }) {
   return (
     <svg
       viewBox="0 0 16 16"
-      className={`size-3.5 ${spinning ? 'spin' : ''}`}
+      className={`size-4 ${spinning ? 'spin' : ''}`}
       fill="none"
       stroke="currentColor"
       strokeWidth="1.5"

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#09090b" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Rnews</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="topbar-row">
+          <h1>Rnews</h1>
+          <p id="updated" class="updated">正在读取</p>
+          <button id="search-toggle" class="icon-btn" aria-label="搜索">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+          </button>
+          <button id="refresh" class="icon-btn" aria-label="刷新">
+            <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.2-5.5"/><path d="M20 4v4.5h-4.5"/></svg>
+          </button>
+        </div>
+        <div id="search-wrap" class="search-wrap hidden">
+          <input id="search" type="search" placeholder="搜索标题、摘要或来源" enterkeyhint="search" />
+        </div>
+        <div id="pills" class="pills"></div>
+      </header>
+
+      <main id="feed" class="feed">
+        <p id="status" class="status">今日资讯</p>
+        <div id="list"></div>
+        <div id="more" class="more"></div>
+      </main>
+
+      <nav class="tabs" id="tabs"></nav>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

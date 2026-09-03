@@ -311,7 +311,7 @@ export function Feed({
 
   return (
     <section className="feed-pane">
-      <p className="mb-3 text-[13px] text-zinc-500">
+      <p className="mb-2 text-xs text-zinc-400 lg:mb-3 lg:text-[13px] lg:text-zinc-500">
         {searchQuery
           ? `找到 ${activePage.total} 条 · 「${searchQuery}」`
           : recommend

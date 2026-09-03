@@ -5,7 +5,7 @@ interface CategoryChipsProps {
   selected: string;
   onSelect: (category: string) => void;
   onPrefetch?: (category: string) => void;
-  layout?: 'row' | 'stack';
+  layout?: 'row' | 'stack' | 'pills';
 }
 
 export function CategoryChips({
@@ -19,6 +19,39 @@ export function CategoryChips({
     onPrefetch?.(category);
     onSelect(category);
   };
+
+  if (layout === 'pills') {
+    return (
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide">
+        {categories.map((category) => {
+          const current = selected === category;
+          return (
+            <button
+              key={category}
+              type="button"
+              onPointerDown={(event) => {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                activate(category);
+              }}
+              onPointerEnter={() => onPrefetch?.(category)}
+              onClick={(event) => {
+                if (event.detail === 0) activate(category);
+              }}
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] transition-colors ${
+                current
+                  ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                  : 'bg-zinc-100 text-zinc-500 dark:bg-white/[0.06] dark:text-zinc-400'
+              }`}
+              aria-current={current ? 'page' : undefined}
+            >
+              {category}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   if (layout === 'stack') {
     return (
