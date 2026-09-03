@@ -1,0 +1,101 @@
+:root {
+  --bg: #09090b;
+  --fg: #fafafa;
+  --muted: #a1a1aa;
+  --line: rgba(255, 255, 255, 0.06);
+  --chip: rgba(255, 255, 255, 0.06);
+  --chip-on: #f4f4f5;
+  --chip-on-fg: #18181b;
+  --card: transparent;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html.light {
+  --bg: #f7f7f8;
+  --fg: #18181b;
+  --muted: #71717a;
+  --line: rgba(24, 24, 27, 0.08);
+  --chip: rgba(24, 24, 27, 0.06);
+  --chip-on: #18181b;
+  --chip-on-fg: #fafafa;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); }
+body {
+  font-family: "SF Pro Text", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  min-height: 100dvh;
+}
+button, input { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+
+#app { min-height: 100dvh; padding-bottom: calc(64px + var(--safe-bottom)); }
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: calc(10px + var(--safe-top)) 16px 10px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--line);
+}
+.topbar-row { display: flex; align-items: center; gap: 6px; }
+.topbar h1 { margin: 0; font-size: 18px; letter-spacing: -0.02em; }
+.updated { flex: 1; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; }
+.icon-btn {
+  width: 38px; height: 38px; border: 0; background: transparent; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn.spin svg { animation: spin .7s linear infinite; }
+.search-wrap { margin: 8px 0 4px; }
+.search-wrap input {
+  width: 100%; border: 0; border-radius: 999px; background: var(--chip);
+  padding: 10px 14px; outline: none;
+}
+.hidden { display: none; }
+.pills { display: flex; gap: 8px; overflow-x: auto; padding: 8px 0 2px; scrollbar-width: none; }
+.pills::-webkit-scrollbar { display: none; }
+.pill {
+  flex: none; border: 0; border-radius: 999px; background: var(--chip); color: var(--muted);
+  padding: 6px 14px; font-size: 13px;
+}
+.pill.on { background: var(--chip-on); color: var(--chip-on-fg); }
+
+.feed { padding: 8px 16px 24px; }
+.status { margin: 4px 0 8px; font-size: 12px; color: var(--muted); }
+
+.row {
+  display: block;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.row h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.45; letter-spacing: -0.01em; }
+.row .orig { margin: 6px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.row .snippet { margin: 8px 0 0; font-size: 13px; line-height: 1.55; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.row .meta { margin: 10px 0 0; font-size: 12px; color: #71717a; }
+
+.more { padding: 20px 0; text-align: center; font-size: 12px; color: var(--muted); }
+.empty { padding: 64px 12px; text-align: center; color: var(--muted); font-size: 14px; }
+
+.skel { height: 14px; border-radius: 6px; margin: 10px 0; background: linear-gradient(90deg, var(--chip) 25%, color-mix(in srgb, var(--fg) 10%, transparent) 37%, var(--chip) 63%); background-size: 200% 100%; animation: shimmer 1.3s ease infinite; }
+
+.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  padding-bottom: var(--safe-bottom);
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--line);
+}
+.tab {
+  border: 0; background: transparent; color: #71717a; padding: 10px 0 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px;
+}
+.tab.on { color: var(--fg); }
+.tab svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }

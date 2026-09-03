@@ -23,6 +23,13 @@ html {
   overflow-anchor: none;
 }
 
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -110,7 +117,13 @@ body {
 
 .feed-row {
   content-visibility: auto;
-  contain-intrinsic-size: auto 8.5rem;
+  contain-intrinsic-size: auto 7.5rem;
+}
+
+@media (min-width: 1024px) {
+  .feed-row {
+    contain-intrinsic-size: auto 8.5rem;
+  }
 }
 
 .feed-row-enter {

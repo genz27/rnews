@@ -29,7 +29,7 @@ export const FeedRow = memo(function FeedRow({
   return (
     <article
       style={enter ? ({ '--enter-delay': `${delay}ms` } as CSSProperties) : undefined}
-      className={`feed-row group relative grid gap-2 border-b border-zinc-200/80 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-baseline sm:gap-8 lg:py-6 dark:border-white/[0.06] ${
+      className={`feed-row group relative grid gap-1.5 border-b border-zinc-200/80 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-baseline lg:gap-8 lg:py-6 dark:border-white/[0.06] ${
         enter ? 'feed-row-enter' : ''
       }`}
     >
@@ -64,7 +64,7 @@ export const FeedRow = memo(function FeedRow({
           </p>
         ) : null}
       </div>
-      <p className="flex flex-wrap items-center gap-x-2 text-[13px] leading-6 text-zinc-500 sm:justify-end">
+      <p className="flex flex-wrap items-center gap-x-2 text-[12px] leading-5 text-zinc-400 lg:justify-end lg:text-[13px] lg:leading-6 lg:text-zinc-500">
         <MetaButton
           title="按这个来源筛选"
           onClick={() => onSource?.(item.source)}
@@ -134,7 +134,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
 
 export function FeedRowSkeleton() {
   return (
-    <div className="grid gap-2 border-b border-zinc-200/80 py-5 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-baseline sm:gap-8 lg:py-6 dark:border-white/[0.06]">
+    <div className="grid gap-2 border-b border-zinc-200/80 py-4 lg:grid-cols-[minmax(0,1fr)_12rem] lg:items-baseline lg:gap-8 lg:py-6 dark:border-white/[0.06]">
       <div className="min-w-0 space-y-2">
         <div className="skeleton-line h-5 w-4/5 rounded" />
         <div className="skeleton-line h-3.5 w-full rounded" />
