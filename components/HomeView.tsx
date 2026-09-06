@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { AskSearch } from '@/components/AskSearch';
 import { BackToTop } from '@/components/BackToTop';
 import { BottomNav } from '@/components/BottomNav';
+import { BriefPanel } from '@/components/BriefPanel';
 import { CategoryChips } from '@/components/CategoryChips';
 import { SideNav } from '@/components/SideNav';
 import { SearchBar } from '@/components/SearchBar';
@@ -376,6 +378,12 @@ export function HomeView({
           />
         </aside>
         <main id="feed" className="min-w-0">
+          {selectedCategory === '推荐' && !searchQuery ? (
+            <div className="mb-10 space-y-10">
+              <AskSearch />
+              <BriefPanel />
+            </div>
+          ) : null}
           <Feed
             category={selectedCategory}
             searchQuery={searchQuery}
