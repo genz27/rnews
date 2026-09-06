@@ -3,9 +3,15 @@
 import { MarkdownText } from '@/components/MarkdownText';
 import { formatUpdatedAt } from '@/lib/time';
 import { DailyBrief } from '@/lib/types';
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 
-export function BriefPanel({ initialBrief = null }: { initialBrief?: DailyBrief | null }) {
+export function BriefPanel({
+  initialBrief = null,
+  children,
+}: {
+  initialBrief?: DailyBrief | null;
+  children?: ReactNode;
+}) {
   const [brief, setBrief] = useState<DailyBrief | null>(initialBrief);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(!initialBrief);
@@ -52,6 +58,7 @@ export function BriefPanel({ initialBrief = null }: { initialBrief?: DailyBrief 
           </button>
         </p>
       </div>
+      {children ? <div className="mt-6 mb-8">{children}</div> : null}
       {error ? <p className="mt-4 text-sm text-zinc-500">{error}</p> : null}
       {brief ? (
         <div className="mt-4">

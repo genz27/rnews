@@ -419,18 +419,15 @@ export function HomeView({
         </aside>
         <main id="feed" className="min-w-0">
           {selectedCategory === '推荐' ? (
-            <>
-              <BriefPanel initialBrief={initialBrief} />
-              <div className="mb-10">
-                <AskSearch
-                  initialQuery={askSeed}
-                  autoAsk={Boolean(askSeed)}
-                  onSource={handleSource}
-                  onCategory={handleSelectCategory}
-                  inputRef={askInputRef}
-                />
-              </div>
-            </>
+            <BriefPanel initialBrief={initialBrief}>
+              <AskSearch
+                initialQuery={askSeed}
+                autoAsk={Boolean(askSeed)}
+                onSource={handleSource}
+                onCategory={handleSelectCategory}
+                inputRef={askInputRef}
+              />
+            </BriefPanel>
           ) : null}
           <Feed
             category={selectedCategory}

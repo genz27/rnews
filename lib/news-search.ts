@@ -11,11 +11,11 @@ export function looksLikeNewsQuery(query: string) {
 export async function searchNews(query: string, limit = 14): Promise<FeedItem[]> {
   const snapshot = await fetchAllFeeds();
   const q = query.trim();
-  const newsy = looksLikeNewsQuery(q);
-  const fromSearch = q ? filterItems(snapshot.items, newsy ? '全部' : '全部', q) : [];
+  const fromSearch = q ? filterItems(snapshot.items, '全部', q) : [];
   const today = filterItems(snapshot.items, '推荐');
+  const pool = today.length >= 6 ? today : snapshot.items;
   const merged = new Map<string, FeedItem>();
-  for (const item of [...fromSearch, ...today]) {
+  for (const item of [...fromSearch, ...pool]) {
     const key = item.id || item.link;
     if (!merged.has(key)) merged.set(key, applyTranslation(item));
     if (merged.size >= Math.max(limit * 2, 24)) break;
