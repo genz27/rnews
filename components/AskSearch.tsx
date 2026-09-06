@@ -241,17 +241,25 @@ export function AskSearch({
   };
 
   const empty = turns.length === 0;
+  const lastTurn = turns[turns.length - 1];
+  const lastParsed = lastTurn ? parseAskAnswer(lastTurn.answer, lastTurn.citations) : null;
+  const dockFollowups =
+    lastTurn && !streaming && !lastTurn.error
+      ? lastParsed?.followups.length
+        ? lastParsed.followups
+        : fallbackFollowups(lastTurn.query)
+      : [];
 
   const composer = (
     <form
-      className="rounded-2xl border border-zinc-200/80 bg-zinc-50 px-4 py-3 shadow-sm dark:border-white/[0.08] dark:bg-zinc-900/80"
+      className="rounded-2xl border border-zinc-200/80 bg-zinc-50 px-3 py-2 shadow-sm dark:border-white/[0.08] dark:bg-zinc-900/80"
       onSubmit={(event) => {
         event.preventDefault();
         void ask();
       }}
     >
       {images.length > 0 ? (
-        <div className="mb-3 flex flex-wrap gap-2">
+        <div className="mb-2 flex flex-wrap gap-2 px-1 pt-1">
           {images.map((src, index) => (
             <button
               key={`${index}-${src.slice(0, 24)}`}
@@ -260,29 +268,29 @@ export function AskSearch({
               className="overflow-hidden rounded-md border border-zinc-200/80 dark:border-white/[0.08]"
               title="移除图片"
             >
-              <img src={src} alt="" className="size-14 object-cover" />
+              <img src={src} alt="" className="size-12 object-cover" />
             </button>
           ))}
         </div>
       ) : null}
-      <textarea
-        ref={boxRef}
-        value={query}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          window.requestAnimationFrame(resizeBox);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            void ask();
-          }
-        }}
-        rows={1}
-        placeholder={empty ? '有问题就搜，比如今天 AI 有什么新闻' : '继续追问'}
-        className="max-h-40 min-h-7 w-full resize-none bg-transparent text-[15px] leading-7 text-zinc-800 outline-none placeholder:text-zinc-400 dark:text-zinc-200 dark:placeholder:text-zinc-600"
-      />
-      <div className="mt-2 flex items-center justify-between gap-3">
+      <div className="flex items-end gap-1.5">
+        <textarea
+          ref={boxRef}
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            window.requestAnimationFrame(resizeBox);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              void ask();
+            }
+          }}
+          rows={1}
+          placeholder={empty ? '有问题就搜…' : '追问'}
+          className="max-h-40 min-h-8 min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-[15px] leading-6 text-zinc-800 outline-none placeholder:text-zinc-400 dark:text-zinc-200 dark:placeholder:text-zinc-600"
+        />
         <input
           ref={fileRef}
           type="file"
@@ -297,25 +305,28 @@ export function AskSearch({
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          className="text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
+          aria-label="添加图片"
         >
-          图片
+          <ImageIcon />
         </button>
         {streaming ? (
           <button
             type="button"
             onClick={() => abortRef.current?.abort()}
-            className="text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+            aria-label="停止"
           >
-            停止
+            <StopIcon />
           </button>
         ) : (
           <button
             type="submit"
             disabled={!query.trim()}
-            className="text-sm text-zinc-500 transition hover:text-zinc-800 disabled:opacity-40 dark:hover:text-zinc-200"
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white transition disabled:opacity-30 dark:bg-zinc-100 dark:text-zinc-900"
+            aria-label={empty ? '搜索' : '追问'}
           >
-            搜索
+            <SendIcon />
           </button>
         )}
       </div>
@@ -344,11 +355,16 @@ export function AskSearch({
         </div>
       ) : (
         <>
-          <div className="mx-auto w-full max-w-2xl pb-36 lg:pb-28">
+          <div
+            className={
+              dockFollowups.length > 0
+                ? 'mx-auto w-full max-w-2xl pb-60 lg:pb-48'
+                : 'mx-auto w-full max-w-2xl pb-52 lg:pb-40'
+            }
+          >
             {turns.map((turn, index) => {
               const last = index === turns.length - 1;
               const parsed = parseAskAnswer(turn.answer, turn.citations);
-              const followups = parsed.followups.length ? parsed.followups : last && !streaming ? fallbackFollowups(turn.query) : [];
               return (
                 <section key={turn.id} className="border-b border-zinc-200/80 py-8 last:border-b-0 dark:border-white/[0.06]">
                   <h2 className="text-xl font-semibold leading-8 tracking-tight text-zinc-900 dark:text-zinc-50">
@@ -418,30 +434,29 @@ export function AskSearch({
                       <span>.</span>
                     </p>
                   ) : null}
-                  {last && !streaming && !turn.error && followups.length > 0 ? (
-                    <div className="mt-6">
-                      <p className="mb-2 text-xs tracking-wide text-zinc-400">追问</p>
-                      <div className="flex flex-wrap gap-2">
-                        {followups.map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            onClick={() => void ask(item, [])}
-                            className="rounded-full border border-zinc-200/80 px-3 py-1.5 text-[13px] text-zinc-500 transition hover:border-zinc-400 hover:text-zinc-800 dark:border-white/[0.08] dark:hover:border-white/20 dark:hover:text-zinc-200"
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
                 </section>
               );
             })}
             <div ref={bottomRef} />
           </div>
-          <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 bg-gradient-to-t from-zinc-50 via-zinc-50/90 to-transparent px-4 pb-2 pt-8 dark:from-zinc-950 dark:via-zinc-950/90 lg:bottom-4 lg:px-8">
-            <div className="pointer-events-auto mx-auto w-full max-w-2xl">{composer}</div>
+          <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 bg-gradient-to-t from-zinc-50 via-zinc-50/95 to-transparent px-4 pb-2 pt-8 dark:from-zinc-950 dark:via-zinc-950/95 lg:bottom-4 lg:px-8">
+            <div className="pointer-events-auto mx-auto w-full max-w-2xl">
+              {dockFollowups.length > 0 ? (
+                <div className="-mx-1 mb-2.5 flex gap-2 overflow-x-auto px-1 pb-0.5 scrollbar-hide">
+                  {dockFollowups.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => void ask(item, [])}
+                      className="shrink-0 rounded-full border border-zinc-200/80 bg-zinc-50/90 px-3 py-1.5 text-[13px] text-zinc-500 backdrop-blur-sm transition hover:border-zinc-400 hover:text-zinc-800 dark:border-white/[0.08] dark:bg-zinc-950/80 dark:hover:border-white/20 dark:hover:text-zinc-200"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {composer}
+            </div>
           </div>
         </>
       )}
@@ -490,4 +505,27 @@ function SourceCard({
       <span className="line-clamp-2 text-[13px] leading-5 text-zinc-700 dark:text-zinc-200">{title}</span>
     </a>
   );
+}
+
+function ImageIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+      <rect x="4" y="5" width="16" height="14" rx="2" />
+      <circle cx="9" cy="10" r="1.4" />
+      <path d="m7 16 3.2-3.2a1 1 0 0 1 1.4 0L16 17l1.2-1.2a1 1 0 0 1 1.4 0L20 17" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M12 18V7" strokeLinecap="round" />
+      <path d="m8 11 4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return <span className="block size-2.5 rounded-[2px] bg-current" />;
 }
