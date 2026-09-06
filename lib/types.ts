@@ -56,5 +56,7 @@ export interface DailyBrief {
   mode: 'llm' | 'extract';
   markdown: string;
   itemCount: number;
+  feedsChecked?: number;
+  feedsOk?: number;
   items?: FeedItem[];
 }

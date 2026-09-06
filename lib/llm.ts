@@ -56,6 +56,7 @@ export async function streamChat(options: {
   messages: ChatMessage[];
   maxTokens?: number;
   signal?: AbortSignal;
+  extra?: Record<string, unknown>;
 }): Promise<ReadableStream<Uint8Array>> {
   const { apiKey, baseUrl, model } = llmConfig();
   if (!apiKey) throw new Error('模型未配置');
@@ -71,6 +72,7 @@ export async function streamChat(options: {
       messages: options.messages,
       stream: true,
       max_completion_tokens: options.maxTokens ?? 2200,
+      ...options.extra,
     }),
     signal: options.signal,
   });

@@ -397,8 +397,6 @@ export function HomeView({
                 <AskSearch
                   initialQuery={askSeed}
                   autoAsk={Boolean(askSeed)}
-                  onSource={handleSource}
-                  onCategory={handleSelectCategory}
                   inputRef={askInputRef}
                 />
               </div>

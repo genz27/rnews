@@ -14,7 +14,9 @@ export function BriefPanel({ initialBrief = null }: { initialBrief?: DailyBrief 
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(refresh ? '/api/brief?refresh=1' : '/api/brief', { cache: 'no-store' });
+      const response = await fetch(refresh ? '/api/brief?refresh=1' : '/api/brief', {
+        cache: refresh ? 'no-store' : 'default',
+      });
       const data = (await response.json()) as DailyBrief & { error?: string };
       if (!response.ok) throw new Error(data.error || '加载失败');
       setBrief(data);
@@ -26,8 +28,9 @@ export function BriefPanel({ initialBrief = null }: { initialBrief?: DailyBrief 
   };
 
   useEffect(() => {
+    if (initialBrief) return;
     void load(false);
-  }, []);
+  }, [initialBrief]);
 
   return (
     <section id="brief">
@@ -36,10 +39,11 @@ export function BriefPanel({ initialBrief = null }: { initialBrief?: DailyBrief 
         <p className="text-sm text-zinc-500">
           {brief ? (
             <>
-              {brief.date} · {brief.itemCount} 条 · {formatUpdatedAt(brief.generatedAt)}
+              {brief.date} · {brief.mode === 'llm' ? 'AI 摘要' : '摘录'} · {brief.itemCount} 条
+              {brief.generatedAt ? ` · ${formatUpdatedAt(brief.generatedAt)}` : ''}
             </>
           ) : (
-            <span>{busy ? '正在整理今日条目…' : '还没有日报'}</span>
+            <span>{busy ? '正在整理半日摘要…' : '还没有日报'}</span>
           )}
           <button
             type="button"

@@ -1,16 +1,12 @@
 'use client';
 
-import { FeedRow } from '@/components/FeedCard';
 import { MarkdownText } from '@/components/MarkdownText';
-import { FeedItem } from '@/lib/types';
-import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 
 type Turn = {
   id: string;
   query: string;
   images: string[];
-  items: FeedItem[];
   answer: string;
   error?: string;
 };
@@ -29,19 +25,12 @@ function readImage(file: File) {
 export function AskSearch({
   initialQuery = '',
   autoAsk = false,
-  showRelated = true,
-  onSource,
-  onCategory,
   inputRef,
 }: {
   initialQuery?: string;
   autoAsk?: boolean;
-  showRelated?: boolean;
-  onSource?: (source: string) => void;
-  onCategory?: (category: string) => void;
   inputRef?: RefObject<HTMLTextAreaElement | null>;
 }) {
-  const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
   const [images, setImages] = useState<string[]>([]);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -49,15 +38,6 @@ export function AskSearch({
   const abortRef = useRef<AbortController | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const askedRef = useRef('');
-
-  const goSource = (source: string) => {
-    if (onSource) onSource(source);
-    else router.push(`/?q=${encodeURIComponent(source)}`);
-  };
-  const goCategory = (category: string) => {
-    if (onCategory) onCategory(category);
-    else router.push(category === '推荐' ? '/' : `/?c=${encodeURIComponent(category)}`);
-  };
 
   const ask = async (nextQuery = query, nextImages = images) => {
     const text = nextQuery.trim();
@@ -73,7 +53,7 @@ export function AskSearch({
         { role: 'user', content: turn.query },
         { role: 'assistant', content: turn.answer },
       ]);
-    setTurns((current) => [...current, { id, query: text, images: nextImages, items: [], answer: '' }]);
+    setTurns((current) => [...current, { id, query: text, images: nextImages, answer: '' }]);
     setQuery('');
     setImages([]);
     setStreaming(true);
@@ -115,13 +95,8 @@ export function AskSearch({
               type?: string;
               text?: string;
               message?: string;
-              items?: FeedItem[];
             };
-            if (event.type === 'related' && Array.isArray(event.items)) {
-              setTurns((current) =>
-                current.map((turn) => (turn.id === id ? { ...turn, items: event.items || [] } : turn))
-              );
-            } else if (event.type === 'delta' && event.text) {
+            if (event.type === 'delta' && event.text) {
               setTurns((current) =>
                 current.map((turn) => (turn.id === id ? { ...turn, answer: turn.answer + event.text } : turn))
               );
@@ -268,31 +243,14 @@ export function AskSearch({
                   ))}
                 </div>
               ) : null}
-              {showRelated && turn.items.length > 0 ? (
-                <div className="mt-5">
-                  <p className="mb-2 text-xs text-zinc-400 lg:text-[13px] lg:text-zinc-500">
-                    相关 {turn.items.length} 条
-                  </p>
-                  {turn.items.map((item) => (
-                    <FeedRow
-                      key={item.id || item.link}
-                      item={item}
-                      query={turn.query}
-                      onSource={goSource}
-                      onCategory={goCategory}
-                    />
-                  ))}
-                </div>
-              ) : null}
               {turn.error ? (
                 <p className="mt-5 text-sm leading-7 text-zinc-500">{turn.error}</p>
               ) : turn.answer ? (
                 <div className="mt-5">
-                  <p className="mb-2 text-xs text-zinc-400 lg:text-[13px] lg:text-zinc-500">回答</p>
                   <MarkdownText text={turn.answer} />
                 </div>
               ) : streaming && index === turns.length - 1 ? (
-                <p className="mt-5 text-sm text-zinc-500">正在检索今日条目…</p>
+                <p className="mt-5 text-sm text-zinc-500">正在搜索…</p>
               ) : null}
             </section>
           ))}
