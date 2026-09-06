@@ -64,16 +64,6 @@ export function PageShell({
               首页
             </Link>
           ) : null}
-          <Link
-            href="/"
-            className={`shrink-0 px-1.5 text-sm transition ${
-              briefActive
-                ? 'text-zinc-900 dark:text-zinc-50'
-                : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
-            }`}
-          >
-            日报
-          </Link>
           {headerRight ? <div className="shrink-0">{headerRight}</div> : null}
           <ThemeToggle compact />
         </div>
@@ -106,16 +96,6 @@ export function PageShell({
                   首页
                 </Link>
               ) : null}
-              <Link
-                href="/"
-                className={`shrink-0 text-sm transition ${
-                  briefActive
-                    ? 'text-zinc-900 dark:text-zinc-50'
-                    : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
-                }`}
-              >
-                日报
-              </Link>
               {searchActive ? null : (
                 <Link
                   href="/ask"
