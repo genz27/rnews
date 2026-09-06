@@ -22,7 +22,9 @@ export function BottomNav({
     ? selected
     : selected === '搜索'
       ? 'AI'
-      : '首页';
+      : selected === '首页' || selected === ''
+        ? '首页'
+        : '';
 
   const go = (id: string, href: string) => {
     if (id === 'AI') {
