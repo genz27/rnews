@@ -12,6 +12,7 @@ interface FeedProps {
   category: string;
   searchQuery: string;
   refreshKey: number;
+  home?: boolean;
   initialBootstrap: FeedBootstrap;
   onBusyChange?: (busy: boolean) => void;
   onRefreshed?: () => void;
@@ -61,6 +62,7 @@ export function Feed({
   category,
   searchQuery,
   refreshKey,
+  home = false,
   initialBootstrap,
   onBusyChange,
   onRefreshed,
@@ -316,7 +318,9 @@ export function Feed({
           ? `找到 ${activePage.total} 条 · 「${searchQuery}」`
           : recommend
             ? `今日 ${activePage.total} 条 · 下滑或点刷新换一批`
-            : `${activePage.items.length}/${activePage.total}`}
+            : home
+              ? `${activePage.items.length}/${activePage.total} · 按时间的最新资讯`
+              : `${activePage.items.length}/${activePage.total}`}
         {activePage.stats?.ok ? ` · ${activePage.stats.ok}/${activePage.stats.sources} 源` : ''}
       </p>
       <div>

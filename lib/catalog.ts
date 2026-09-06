@@ -178,7 +178,7 @@ export function getCatalogCategories(): string[] {
 }
 
 export function getNavCategories(): string[] {
-  return getCatalogCategories();
+  return ['首页', '推荐', ...CATEGORY_ORDER];
 }
 
 export function mergeSources(extra: FeedSource[]): FeedSource[] {
