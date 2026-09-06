@@ -15,6 +15,7 @@ export function AskView({ initialQuery = '', autoAsk = false }: { initialQuery?:
       subtitle="有问题就搜"
       searchActive
       hideTitle
+      hidePills
       headerRight={
         active ? (
           <button

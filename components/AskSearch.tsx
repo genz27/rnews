@@ -1,6 +1,7 @@
 'use client';
 
 import { MarkdownText } from '@/components/MarkdownText';
+import { fallbackFollowups, parseAskAnswer } from '@/lib/ask-format';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 
@@ -9,11 +10,11 @@ export type AskTurn = {
   query: string;
   images: string[];
   answer: string;
+  citations?: string[];
   error?: string;
 };
 
 const EXAMPLES = ['今天有什么重要新闻', 'AI 有什么新进展', '社区在聊什么'];
-const FOLLOWUPS = ['依据是什么', '还有哪些说法', '这对行业意味着什么'];
 const OLD_THREAD_KEY = 'rnews-ask-thread';
 
 function readImage(file: File) {
@@ -23,24 +24,6 @@ function readImage(file: File) {
     reader.onerror = () => reject(new Error('read failed'));
     reader.readAsDataURL(file);
   });
-}
-
-function extractSources(text: string) {
-  const seen = new Set<string>();
-  const sources: { href: string; host: string }[] = [];
-  const matches = text.match(/https?:\/\/[^\s)\]>'"]+/g) || [];
-  for (const raw of matches) {
-    const href = raw.replace(/[)，。,.!！?？;；]+$/g, '');
-    if (seen.has(href)) continue;
-    seen.add(href);
-    try {
-      sources.push({ href, host: new URL(href).hostname.replace(/^www\./, '') });
-    } catch {
-      /* skip */
-    }
-    if (sources.length >= 8) break;
-  }
-  return sources;
 }
 
 export function AskSearch({
@@ -168,9 +151,25 @@ export function AskSearch({
               type?: string;
               text?: string;
               message?: string;
+              urls?: string[];
             };
             if (event.type === 'delta' && event.text) {
               appendDelta(id, event.text);
+            } else if (event.type === 'citations' && event.urls?.length) {
+              setTurns((current) =>
+                current.map((turn) => {
+                  if (turn.id !== id) return turn;
+                  const seen = new Set(turn.citations || []);
+                  const next = [...(turn.citations || [])];
+                  for (const url of event.urls || []) {
+                    if (!seen.has(url)) {
+                      seen.add(url);
+                      next.push(url);
+                    }
+                  }
+                  return { ...turn, citations: next };
+                })
+              );
             } else if (event.type === 'error') {
               flushPending();
               setTurns((current) =>
@@ -314,7 +313,7 @@ export function AskSearch({
   );
 
   return (
-    <div id="ask" className={empty ? 'flex min-h-[calc(100dvh-14rem)] flex-col justify-center lg:min-h-[calc(100dvh-12rem)]' : undefined}>
+    <div id="ask" className={empty ? 'flex min-h-[calc(100dvh-11rem)] flex-col justify-center lg:min-h-[calc(100dvh-10rem)]' : undefined}>
       {empty ? (
         <div className="mx-auto w-full max-w-2xl pb-10">
           <h1 className="text-center text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">AI 搜索</h1>
@@ -337,8 +336,9 @@ export function AskSearch({
         <>
           <div className="mx-auto w-full max-w-2xl pb-36 lg:pb-28">
             {turns.map((turn, index) => {
-              const sources = extractSources(turn.answer);
               const last = index === turns.length - 1;
+              const parsed = parseAskAnswer(turn.answer, turn.citations);
+              const followups = parsed.followups.length ? parsed.followups : last && !streaming ? fallbackFollowups(turn.query) : [];
               return (
                 <section key={turn.id} className="border-b border-zinc-200/80 py-8 last:border-b-0 dark:border-white/[0.06]">
                   <h2 className="text-xl font-semibold leading-8 tracking-tight text-zinc-900 dark:text-zinc-50">
@@ -351,47 +351,51 @@ export function AskSearch({
                       ))}
                     </div>
                   ) : null}
-                  {turn.error ? (
-                    <p className="mt-5 text-sm leading-7 text-zinc-500">{turn.error}</p>
-                  ) : turn.answer ? (
-                    <div className="mt-5">
-                      <MarkdownText text={turn.answer} />
-                    </div>
-                  ) : streaming && last ? (
-                    <p className="loading-dots mt-5 text-sm text-zinc-500">
-                      正在搜索
-                      <span>.</span>
-                      <span>.</span>
-                      <span>.</span>
-                    </p>
-                  ) : null}
-                  {sources.length > 0 ? (
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      {sources.map((source) => (
+                  {parsed.sources.length > 0 ? (
+                    <div className="-mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide">
+                      {parsed.sources.map((source, sourceIndex) => (
                         <a
                           key={source.href}
                           href={source.href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="rounded-full border border-zinc-200/80 px-2.5 py-1 text-[12px] text-zinc-500 transition hover:border-zinc-400 hover:text-zinc-800 dark:border-white/[0.08] dark:hover:border-white/20 dark:hover:text-zinc-200"
+                          className="flex shrink-0 items-center gap-2 rounded-xl border border-zinc-200/80 px-3 py-2 text-[13px] text-zinc-600 transition hover:border-zinc-400 hover:text-zinc-900 dark:border-white/[0.08] dark:text-zinc-400 dark:hover:border-white/20 dark:hover:text-zinc-100"
                         >
-                          {source.host}
+                          <span className="text-[11px] text-zinc-400">{sourceIndex + 1}</span>
+                          <span className="max-w-40 truncate">{source.title}</span>
                         </a>
                       ))}
                     </div>
                   ) : null}
-                  {last && !streaming && !turn.error ? (
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      {FOLLOWUPS.map((item) => (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => void ask(item, [])}
-                          className="rounded-full border border-zinc-200/80 px-3 py-1.5 text-[13px] text-zinc-500 transition hover:border-zinc-400 hover:text-zinc-800 dark:border-white/[0.08] dark:hover:border-white/20 dark:hover:text-zinc-200"
-                        >
-                          {item}
-                        </button>
-                      ))}
+                  {turn.error ? (
+                    <p className="mt-5 text-sm leading-7 text-zinc-500">{turn.error}</p>
+                  ) : parsed.body ? (
+                    <div className="mt-5">
+                      <MarkdownText text={parsed.body} sources={parsed.sources} />
+                    </div>
+                  ) : streaming && last ? (
+                    <p className="loading-dots mt-5 text-sm text-zinc-500">
+                      {parsed.sources.length ? '正在整理' : '正在搜索网页'}
+                      <span>.</span>
+                      <span>.</span>
+                      <span>.</span>
+                    </p>
+                  ) : null}
+                  {last && !streaming && !turn.error && followups.length > 0 ? (
+                    <div className="mt-6">
+                      <p className="mb-2 text-xs tracking-wide text-zinc-400">追问</p>
+                      <div className="flex flex-wrap gap-2">
+                        {followups.map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => void ask(item, [])}
+                            className="rounded-full border border-zinc-200/80 px-3 py-1.5 text-[13px] text-zinc-500 transition hover:border-zinc-400 hover:text-zinc-800 dark:border-white/[0.08] dark:hover:border-white/20 dark:hover:text-zinc-200"
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   ) : null}
                 </section>

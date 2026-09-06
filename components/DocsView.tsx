@@ -75,6 +75,7 @@ Content-Type: application/json
         </p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li><code>{`{"type":"delta","text":"..."}`}</code> 增量正文</li>
+          <li><code>{`{"type":"citations","urls":["https://..."]}`}</code> 搜索来源</li>
           <li><code>{`{"type":"error","message":"..."}`}</code> 失败</li>
         </ul>
         <p className="mt-2">未配置模型时返回 503。超限返回 429。</p>

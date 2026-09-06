@@ -17,6 +17,7 @@ export function PageShell({
   docsActive,
   fullHeight = false,
   hideTitle = false,
+  hidePills = false,
   hideBottomNav = false,
   headerRight,
   children,
@@ -28,6 +29,7 @@ export function PageShell({
   docsActive?: boolean;
   fullHeight?: boolean;
   hideTitle?: boolean;
+  hidePills?: boolean;
   hideBottomNav?: boolean;
   headerRight?: ReactNode;
   children: ReactNode;
@@ -65,14 +67,16 @@ export function PageShell({
           {headerRight ? <div className="shrink-0">{headerRight}</div> : null}
           <ThemeToggle compact />
         </div>
-        <div className="px-4 pb-2.5 lg:hidden">
-          <CategoryChips
-            layout="pills"
-            categories={categories}
-            selected={briefActive ? '首页' : ''}
-            onSelect={goCategory}
-          />
-        </div>
+        {hidePills ? null : (
+          <div className="px-4 pb-2.5 lg:hidden">
+            <CategoryChips
+              layout="pills"
+              categories={categories}
+              selected={briefActive ? '首页' : ''}
+              onSelect={goCategory}
+            />
+          </div>
+        )}
 
         <div className="mx-auto hidden max-w-6xl px-5 py-4 lg:block lg:px-8 lg:py-5">
           <div className="flex items-center justify-between gap-6">

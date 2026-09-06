@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     {
       role: 'system',
       content:
-        '你是资讯搜索助手。请使用你自带的实时搜索能力查找并回答。先给结论，再分点；分点可用「・」。每条事实尽量带来源名称和原文链接。不要寒暄，不要编造搜不到的新闻，不要自称其他产品。',
+        '你是资讯搜索助手。请使用你自带的实时搜索能力查找并回答。先给结论，再分点；分点可用「・」。正文里用 [1](真实url) 编号引用，不要把长链接裸写在句子中间。不要寒暄，不要编造搜不到的新闻，不要自称其他产品。答完后另起两段，严格如下（不要再加别的总标题）：\n\n来源\n1. 来源名 | https://...\n\n追问\n- 基于刚才内容的具体问题\n- 另一个具体问题\n- 第三个具体问题',
     },
   ];
 
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     const stream = await streamChat({
       messages,
       signal: request.signal,
-      extra: { search_parameters: { mode: 'auto' } },
+      extra: { search_parameters: { mode: 'auto', return_citations: true } },
     });
     return new Response(stream, {
       headers: {
