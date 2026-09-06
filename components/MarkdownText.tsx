@@ -9,28 +9,45 @@ function trimUrl(url: string) {
   return url.replace(/[)，。,.!！?？;；]+$/g, '');
 }
 
-function citationBadge(label: string, href: string, key: number) {
+const badgeClass =
+  'mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-sm bg-zinc-100 px-1 align-super text-[10px] leading-none text-zinc-500 hover:bg-zinc-200 hover:text-zinc-800 dark:bg-white/[0.08] dark:text-zinc-400 dark:hover:bg-white/[0.14] dark:hover:text-zinc-200';
+
+function citationBadge(
+  label: string,
+  href: string,
+  key: number,
+  onCite?: (index: number, href: string) => void
+) {
+  const index = Number(String(label).replace(/\D/g, '')) - 1;
+  if (onCite && index >= 0) {
+    return (
+      <button key={key} type="button" onClick={() => onCite(index, href)} className={badgeClass}>
+        {label}
+      </button>
+    );
+  }
   return (
-    <a
-      key={key}
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-sm bg-zinc-100 px-1 align-super text-[10px] leading-none text-zinc-500 hover:bg-zinc-200 hover:text-zinc-800 dark:bg-white/[0.08] dark:text-zinc-400 dark:hover:bg-white/[0.14] dark:hover:text-zinc-200"
-    >
+    <a key={key} href={href} target="_blank" rel="noopener noreferrer" className={badgeClass}>
       {label}
     </a>
   );
 }
 
-function renderInline(text: string, compact = false, sources: Array<{ href: string }> = []) {
+function renderInline(
+  text: string,
+  compact = false,
+  sources: Array<{ href: string }> = [],
+  onCite?: (index: number, href: string) => void
+) {
   const parts = text.split(/(\[\[[^\]]+\]\]\([^)]+\)|\[[^\]]+\]\([^)]+\)|\[\d+\]|\*\*[^*]+\*\*|https?:\/\/[^\s<>"']+)/g);
   return parts.map((part, index) => {
     const numbered = /^\[\[([^\]]+)\]\]\(([^)]+)\)$/.exec(part) || /^\[(\d+)\]\(([^)]+)\)$/.exec(part);
-    if (numbered) return citationBadge(numbered[1], numbered[2], index);
+    if (numbered) return citationBadge(numbered[1], numbered[2], index, onCite);
     const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
     if (link) {
-      if (/^\[?\d+\]?$/.test(link[1].trim())) return citationBadge(link[1].replace(/\D/g, '') || link[1], link[2], index);
+      if (/^\[?\d+\]?$/.test(link[1].trim())) {
+        return citationBadge(link[1].replace(/\D/g, '') || link[1], link[2], index, onCite);
+      }
       return (
         <a
           key={index}
@@ -46,7 +63,7 @@ function renderInline(text: string, compact = false, sources: Array<{ href: stri
     const bare = /^\[(\d+)\]$/.exec(part);
     if (bare) {
       const source = sources[Number(bare[1]) - 1];
-      if (source) return citationBadge(bare[1], source.href, index);
+      if (source) return citationBadge(bare[1], source.href, index, onCite);
     }
     const bold = /^\*\*([^*]+)\*\*$/.exec(part);
     if (bold) return <strong key={index}>{bold[1]}</strong>;
@@ -97,10 +114,12 @@ function MarkdownBody({
   text,
   compact = false,
   sources = [],
+  onCite,
 }: {
   text: string;
   compact?: boolean;
   sources?: Array<{ href: string }>;
+  onCite?: (index: number, href: string) => void;
 }) {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const blocks: ReactNode[] = [];
@@ -116,7 +135,7 @@ function MarkdownBody({
       const key = `h-${index}`;
       blocks.push(
         <h3 key={key} className={`font-medium text-zinc-900 dark:text-zinc-100 ${compact ? 'pt-0.5 text-[13px]' : 'pt-1 text-sm'}`}>
-          {renderInline(headingText(lines[index]), compact, sources)}
+          {renderInline(headingText(lines[index]), compact, sources, onCite)}
         </h3>
       );
       index += 1;
@@ -125,7 +144,7 @@ function MarkdownBody({
     if (kind === 'footer') {
       blocks.push(
         <p key={`f-${index}`} className="pt-2 text-xs text-zinc-400 dark:text-zinc-500">
-          {renderInline(lines[index].trim(), compact, sources)}
+          {renderInline(lines[index].trim(), compact, sources, onCite)}
         </p>
       );
       index += 1;
@@ -143,7 +162,7 @@ function MarkdownBody({
           {items.map((item, itemIndex) => (
             <li key={itemIndex} className="brief-row flex gap-2">
               <span className="shrink-0 text-zinc-400">・</span>
-              <span className="min-w-0">{renderInline(item, compact, sources)}</span>
+              <span className="min-w-0">{renderInline(item, compact, sources, onCite)}</span>
             </li>
           ))}
         </ul>
@@ -161,7 +180,7 @@ function MarkdownBody({
       <p key={`p-${start}`}>
         {chunk.map((line, lineIndex) => (
           <span key={lineIndex}>
-            {renderInline(line, compact, sources)}
+            {renderInline(line, compact, sources, onCite)}
             {lineIndex < chunk.length - 1 ? <br /> : null}
           </span>
         ))}
