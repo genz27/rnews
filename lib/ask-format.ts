@@ -70,7 +70,10 @@ function collectLinks(text: string, list: AskSource[]) {
 }
 
 function splitBlock(text: string, heading: string) {
-  const pattern = new RegExp(`(?:^|\\n)(?:#{1,3}\\s*)?${heading}\\s*\\n([\\s\\S]+)$`, 'i');
+  const pattern = new RegExp(
+    `(?:^|\\n)(?:#{1,6}\\s*)?(?:\\*{1,3}|_{1,3})?\\s*${heading}\\s*(?:\\*{1,3}|_{1,3})?\\s*[:：]?\\s*\\n([\\s\\S]+)$`,
+    'i'
+  );
   const match = pattern.exec(text);
   if (!match || match.index < 0) return { body: text, block: '' };
   return { body: text.slice(0, match.index).trim(), block: match[1].trim() };
@@ -80,7 +83,7 @@ function parseFollowups(block: string) {
   return block
     .split('\n')
     .map((line) => line.replace(/^[-*・·\d.、)\s]+/, '').trim())
-    .filter((line) => line && !/^https?:\/\//.test(line) && line.length <= 48)
+    .filter((line) => line && !/^https?:\/\//.test(line) && line.length <= 64)
     .slice(0, 3);
 }
 
