@@ -1,7 +1,7 @@
 import { memo, type ReactNode } from 'react';
 
 const SECTION = /^(AI 焦点|其他资讯|今日要点|今日观察|来源|追问)$/;
-const LIST = /^[-*・·]\s*/;
+const LIST = /^(?:[-*]\s+|[・·]\s*)/;
 const FOOTER = /^来源：/;
 const RULE = /^(─{3,}|-{3,})$/;
 
