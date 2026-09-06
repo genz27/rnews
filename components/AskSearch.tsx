@@ -399,8 +399,8 @@ export function AskSearch({
             })}
             <div ref={bottomRef} />
           </div>
-          <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 px-4 lg:bottom-6 lg:px-8">
-            <div className="mx-auto w-full max-w-2xl">{composer}</div>
+          <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 bg-gradient-to-t from-zinc-50 via-zinc-50/90 to-transparent px-4 pb-2 pt-8 dark:from-zinc-950 dark:via-zinc-950/90 lg:bottom-4 lg:px-8">
+            <div className="pointer-events-auto mx-auto w-full max-w-2xl">{composer}</div>
           </div>
         </>
       )}

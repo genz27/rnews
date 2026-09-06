@@ -71,7 +71,7 @@ function headingText(line: string) {
   return line.trim().replace(/^#{1,3}\s+/, '');
 }
 
-export const MarkdownText = memo(function MarkdownText({ text, compact = false }: { text: string; compact?: boolean }) {
+function MarkdownBody({ text, compact = false }: { text: string; compact?: boolean }) {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const blocks: ReactNode[] = [];
   let index = 0;
@@ -150,4 +150,7 @@ export const MarkdownText = memo(function MarkdownText({ text, compact = false }
       {blocks}
     </div>
   );
-});
+}
+
+export const MarkdownText = memo(MarkdownBody);
+MarkdownText.displayName = 'MarkdownText';
