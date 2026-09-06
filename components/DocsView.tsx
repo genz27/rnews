@@ -94,7 +94,7 @@ Content-Type: application/json
           <li><code>date</code> 上海时区日期</li>
           <li><code>generatedAt</code> 生成时间（Unix 毫秒）</li>
           <li><code>mode</code> <code>llm</code> 为 AI 总结，<code>extract</code> 为摘录回退</li>
-          <li><code>markdown</code> 固定两段：AI 焦点 / 其他资讯，约 11 条短结论</li>
+          <li><code>markdown</code> 固定两段：AI 焦点 / 其他资讯，约 28–32 条短结论</li>
           <li><code>itemCount</code> 精选条数</li>
           <li><code>feedsChecked</code> / <code>feedsOk</code> 检查与成功的订阅源数</li>
         </ul>

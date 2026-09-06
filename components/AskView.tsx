@@ -16,7 +16,7 @@ export function AskView({ initialQuery = '', autoAsk = false }: { initialQuery?:
         <button
           type="button"
           onClick={() => clearRef.current?.()}
-          className="text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+          className="px-1.5 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
         >
           新对话
         </button>
