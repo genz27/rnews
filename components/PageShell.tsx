@@ -56,6 +56,14 @@ export function PageShell({
             <Link href="/">Rnews</Link>
           </h1>
           <div className="min-w-0 flex-1" />
+          {searchActive ? (
+            <Link
+              href="/"
+              className="shrink-0 px-1.5 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+            >
+              首页
+            </Link>
+          ) : null}
           <Link
             href="/brief"
             className={`shrink-0 px-1.5 text-sm transition ${
@@ -90,6 +98,14 @@ export function PageShell({
             </div>
             <div className="flex min-w-0 shrink-0 items-center justify-end gap-5">
               {headerRight}
+              {searchActive ? (
+                <Link
+                  href="/"
+                  className="shrink-0 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+                >
+                  首页
+                </Link>
+              ) : null}
               <Link
                 href="/brief"
                 className={`shrink-0 text-sm transition ${
