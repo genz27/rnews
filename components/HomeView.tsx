@@ -377,6 +377,7 @@ export function HomeView({
                   ? selectedCategory
                   : '全部'
             }
+            home={isHome}
             searchQuery={searchQuery}
             refreshKey={refreshKey}
             initialBootstrap={initialBootstrap}
