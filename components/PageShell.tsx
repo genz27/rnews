@@ -119,7 +119,9 @@ export function PageShell({
         className={`mx-auto flex w-full flex-1 gap-10 px-4 lg:gap-16 lg:px-8 ${hideSideNav ? 'max-w-3xl' : 'max-w-6xl'} ${
           fullHeight
             ? `min-h-0 overflow-hidden py-3 ${hideBottomNav ? 'pb-3' : 'pb-[calc(4.75rem+env(safe-area-inset-bottom))]'} lg:py-6 lg:pb-6`
-            : 'py-4 pb-24 lg:py-10 lg:pb-10'
+            : hideBottomNav
+              ? 'py-4 pb-6 lg:py-10 lg:pb-10'
+              : 'py-4 pb-24 lg:py-10 lg:pb-10'
         }`}
       >
         {hideSideNav ? null : (

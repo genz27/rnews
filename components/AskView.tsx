@@ -6,7 +6,7 @@ import { useCallback, useRef, useState } from 'react';
 
 export function AskView({ initialQuery = '', autoAsk = false }: { initialQuery?: string; autoAsk?: boolean }) {
   const clearRef = useRef<(() => void) | null>(null);
-  const [active, setActive] = useState(false);
+  const [active, setActive] = useState(autoAsk && Boolean(initialQuery.trim()));
   const handleActive = useCallback((next: boolean) => setActive(next), []);
 
   return (
@@ -17,6 +17,7 @@ export function AskView({ initialQuery = '', autoAsk = false }: { initialQuery?:
       hideTitle
       hidePills
       hideSideNav
+      hideBottomNav={active}
       headerRight={
         active ? (
           <button
