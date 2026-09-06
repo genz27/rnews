@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BackToTop } from '@/components/BackToTop';
 import { BottomNav } from '@/components/BottomNav';
-import { BriefPanel } from '@/components/BriefPanel';
 import { CategoryChips } from '@/components/CategoryChips';
 import { SideNav } from '@/components/SideNav';
 import { SearchBar } from '@/components/SearchBar';
@@ -14,14 +13,13 @@ import { Toast } from '@/components/Toast';
 import { persistCategory } from '@/lib/category-pref';
 import { getCatalogCategories, getNavCategories } from '@/lib/catalog';
 import { formatUpdatedAt } from '@/lib/time';
-import { DailyBrief, FeedBootstrap } from '@/lib/types';
+import { FeedBootstrap } from '@/lib/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface HomeViewProps {
   initialBootstrap: FeedBootstrap;
   initialCategory?: string;
   initialQuery?: string;
-  initialBrief?: DailyBrief | null;
   initialCachedAt?: number;
 }
 
@@ -29,7 +27,6 @@ export function HomeView({
   initialBootstrap,
   initialCategory = '首页',
   initialQuery = '',
-  initialBrief = null,
   initialCachedAt,
 }: HomeViewProps) {
   const router = useRouter();
@@ -272,6 +269,12 @@ export function HomeView({
           <p className="min-w-0 flex-1 truncate px-1 text-xs text-zinc-400">
             {cachedAt ? formatUpdatedAt(cachedAt, now) : '聚合资讯'}
           </p>
+          <Link
+            href="/brief"
+            className="shrink-0 px-1.5 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+          >
+            日报
+          </Link>
           <button
             type="button"
             onClick={() => {
@@ -345,6 +348,9 @@ export function HomeView({
                   inputRef={desktopSearchRef}
                 />
               </div>
+              <Link href="/brief" className="shrink-0 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200">
+                日报
+              </Link>
               <Link href="/ask" className="shrink-0 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200">
                 AI 搜索
               </Link>
@@ -371,29 +377,9 @@ export function HomeView({
             selected={selectedCategory}
             onSelect={handleSelectCategory}
             onPrefetch={handlePrefetch}
-            briefActive={isHome}
           />
         </aside>
         <main id="feed" className="min-w-0">
-          {isHome ? (
-            <div className="mb-10 border-b border-zinc-200/80 pb-8 dark:border-white/[0.06]">
-              <BriefPanel initialBrief={initialBrief} />
-            </div>
-          ) : null}
-          {isHome ? (
-            <div className="mb-4 flex items-baseline justify-between gap-3">
-              <h2 id="recommend" className="text-base font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
-                今日推荐
-              </h2>
-              <button
-                type="button"
-                onClick={handleRefresh}
-                className="text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
-              >
-                换一批
-              </button>
-            </div>
-          ) : null}
           <Feed
             category={isHome ? '推荐' : selectedCategory === '全部' || getCatalogCategories().includes(selectedCategory) ? selectedCategory : '推荐'}
             searchQuery={searchQuery}

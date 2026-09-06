@@ -10,11 +10,8 @@ export function AskView({ initialQuery = '', autoAsk = false }: { initialQuery?:
   return (
     <PageShell
       title="AI 搜索"
-      subtitle="可持续对话，刷新也不会丢"
+      subtitle="先搜，再往下看回答"
       searchActive
-      fullHeight
-      hideMobileBack
-      hideBottomNav
       headerRight={
         <button
           type="button"

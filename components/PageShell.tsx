@@ -59,7 +59,7 @@ export function PageShell({
         <aside className="hidden lg:block">
           <SideNav
             categories={categories}
-            selected={briefActive ? '首页' : ''}
+            selected=""
             searchActive={searchActive}
             briefActive={briefActive}
             docsActive={docsActive}
