@@ -355,7 +355,13 @@ export function AskSearch({
         </div>
       ) : (
         <>
-          <div className="mx-auto w-full max-w-2xl pb-52 lg:pb-40">
+          <div
+            className={
+              dockFollowups.length > 0
+                ? 'mx-auto w-full max-w-2xl pb-60 lg:pb-48'
+                : 'mx-auto w-full max-w-2xl pb-52 lg:pb-40'
+            }
+          >
             {turns.map((turn, index) => {
               const last = index === turns.length - 1;
               const parsed = parseAskAnswer(turn.answer, turn.citations);
@@ -436,13 +442,13 @@ export function AskSearch({
           <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 bg-gradient-to-t from-zinc-50 via-zinc-50/95 to-transparent px-4 pb-2 pt-8 dark:from-zinc-950 dark:via-zinc-950/95 lg:bottom-4 lg:px-8">
             <div className="pointer-events-auto mx-auto w-full max-w-2xl">
               {dockFollowups.length > 0 ? (
-                <div className="mb-3 flex flex-wrap gap-2">
+                <div className="-mx-1 mb-2.5 flex gap-2 overflow-x-auto px-1 pb-0.5 scrollbar-hide">
                   {dockFollowups.map((item) => (
                     <button
                       key={item}
                       type="button"
                       onClick={() => void ask(item, [])}
-                      className="rounded-full border border-zinc-200/80 bg-zinc-50/90 px-3 py-1.5 text-[13px] text-zinc-500 backdrop-blur-sm transition hover:border-zinc-400 hover:text-zinc-800 dark:border-white/[0.08] dark:bg-zinc-950/80 dark:hover:border-white/20 dark:hover:text-zinc-200"
+                      className="shrink-0 rounded-full border border-zinc-200/80 bg-zinc-50/90 px-3 py-1.5 text-[13px] text-zinc-500 backdrop-blur-sm transition hover:border-zinc-400 hover:text-zinc-800 dark:border-white/[0.08] dark:bg-zinc-950/80 dark:hover:border-white/20 dark:hover:text-zinc-200"
                     >
                       {item}
                     </button>
