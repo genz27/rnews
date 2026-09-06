@@ -1,7 +1,7 @@
 'use client';
 
 import { MarkdownText } from '@/components/MarkdownText';
-import { fallbackFollowups, parseAskAnswer } from '@/lib/ask-format';
+import { fallbackFollowups, parseAskAnswer, type AskSource } from '@/lib/ask-format';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 
@@ -10,7 +10,7 @@ export type AskTurn = {
   query: string;
   images: string[];
   answer: string;
-  citations?: string[];
+  citations?: Array<string | { href: string; title?: string }>;
   error?: string;
 };
 
@@ -152,24 +152,30 @@ export function AskSearch({
               text?: string;
               message?: string;
               urls?: string[];
+              sources?: Array<{ href?: string; title?: string }>;
             };
             if (event.type === 'delta' && event.text) {
               appendDelta(id, event.text);
-            } else if (event.type === 'citations' && event.urls?.length) {
-              setTurns((current) =>
-                current.map((turn) => {
-                  if (turn.id !== id) return turn;
-                  const seen = new Set(turn.citations || []);
-                  const next = [...(turn.citations || [])];
-                  for (const url of event.urls || []) {
-                    if (!seen.has(url)) {
-                      seen.add(url);
-                      next.push(url);
+            } else if (event.type === 'citations') {
+              const incoming = (event.sources || []).filter((item) => item.href);
+              const extras = (event.urls || []).map((href) => ({ href }));
+              const batch = (incoming.length ? incoming : extras) as Array<{ href: string; title?: string }>;
+              if (batch.length) {
+                setTurns((current) =>
+                  current.map((turn) => {
+                    if (turn.id !== id) return turn;
+                    const next = [...(turn.citations || [])];
+                    const seen = new Set(next.map((item) => (typeof item === 'string' ? item : item.href)));
+                    for (const source of batch) {
+                      if (!seen.has(source.href)) {
+                        seen.add(source.href);
+                        next.push(source);
+                      }
                     }
-                  }
-                  return { ...turn, citations: next };
-                })
-              );
+                    return { ...turn, citations: next };
+                  })
+                );
+              }
             } else if (event.type === 'error') {
               flushPending();
               setTurns((current) =>
@@ -352,19 +358,13 @@ export function AskSearch({
                     </div>
                   ) : null}
                   {parsed.sources.length > 0 ? (
-                    <div className="-mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide">
-                      {parsed.sources.map((source, sourceIndex) => (
-                        <a
-                          key={source.href}
-                          href={source.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex shrink-0 items-center gap-2 rounded-xl border border-zinc-200/80 px-3 py-2 text-[13px] text-zinc-600 transition hover:border-zinc-400 hover:text-zinc-900 dark:border-white/[0.08] dark:text-zinc-400 dark:hover:border-white/20 dark:hover:text-zinc-100"
-                        >
-                          <span className="text-[11px] text-zinc-400">{sourceIndex + 1}</span>
-                          <span className="max-w-40 truncate">{source.title}</span>
-                        </a>
-                      ))}
+                    <div className="mt-4">
+                      <p className="mb-2 text-xs tracking-wide text-zinc-400">{parsed.sources.length} 个来源</p>
+                      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide">
+                        {parsed.sources.map((source, sourceIndex) => (
+                          <SourceCard key={source.href} source={source} index={sourceIndex} />
+                        ))}
+                      </div>
                     </div>
                   ) : null}
                   {turn.error ? (
@@ -409,5 +409,23 @@ export function AskSearch({
         </>
       )}
     </div>
+  );
+}
+
+function SourceCard({ source, index }: { source: AskSource; index: number }) {
+  const title = source.title && source.title !== source.host ? source.title : source.host;
+  return (
+    <a
+      href={source.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex w-44 shrink-0 flex-col gap-1 rounded-xl border border-zinc-200/80 px-3 py-2.5 transition hover:border-zinc-400 dark:border-white/[0.08] dark:hover:border-white/20"
+    >
+      <span className="flex items-center gap-2 text-[11px] text-zinc-400">
+        <span>{index + 1}</span>
+        <span className="truncate">{source.host}</span>
+      </span>
+      <span className="line-clamp-2 text-[13px] leading-5 text-zinc-700 dark:text-zinc-200">{title}</span>
+    </a>
   );
 }
