@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ReactNode } from 'react';
 import { SideNav } from '@/components/SideNav';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { getCatalogCategories } from '@/lib/catalog';
+import { getNavCategories } from '@/lib/catalog';
 
 export function PageShell({
   title,
@@ -21,7 +21,7 @@ export function PageShell({
   docsActive?: boolean;
   children: ReactNode;
 }) {
-  const categories = getCatalogCategories();
+  const categories = getNavCategories();
 
   return (
     <div className="min-h-svh">

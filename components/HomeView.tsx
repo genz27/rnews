@@ -12,7 +12,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Feed } from '@/components/Feed';
 import { Toast } from '@/components/Toast';
 import { persistCategory } from '@/lib/category-pref';
-import { getCatalogCategories } from '@/lib/catalog';
+import { getCatalogCategories, getNavCategories } from '@/lib/catalog';
 import { formatUpdatedAt } from '@/lib/time';
 import { DailyBrief, FeedBootstrap } from '@/lib/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -28,20 +28,20 @@ interface HomeViewProps {
 
 export function HomeView({
   initialBootstrap,
-  initialCategory = '推荐',
+  initialCategory = '首页',
   initialQuery = '',
   initialAsk = '',
   initialBrief = null,
   initialCachedAt,
 }: HomeViewProps) {
-  const categories = getCatalogCategories();
+  const categories = getNavCategories();
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [refreshKey, setRefreshKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [help, setHelp] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(true);
+  const [searchOpen, setSearchOpen] = useState(Boolean(initialQuery));
   const [askSeed, setAskSeed] = useState(initialAsk);
   const [cachedAt, setCachedAt] = useState(initialCachedAt);
   const [now, setNow] = useState(() => Date.now());
@@ -51,6 +51,7 @@ export function HomeView({
   const prefetchRef = useRef<(category: string) => void>(() => undefined);
   const selectedRef = useRef(selectedCategory);
   const queryRef = useRef(searchQuery);
+  const isHome = selectedCategory === '首页';
 
   useEffect(() => {
     selectedRef.current = selectedCategory;
@@ -62,13 +63,14 @@ export function HomeView({
   }, []);
 
   const handlePrefetch = useCallback((category: string) => {
+    if (category === '首页') return;
     prefetchRef.current(category);
   }, []);
 
   const writeUrl = useCallback((category: string, query: string, push: boolean) => {
     const params = new URLSearchParams();
-    if (category && category !== '推荐') params.set('c', category);
-    if (query) params.set('q', query);
+    if (category && category !== '首页') params.set('c', category);
+    if (query && category !== '首页') params.set('q', query);
     const next = params.toString() ? `/?${params.toString()}` : '/';
     const state = { c: category, q: query };
     if (push) window.history.pushState(state, '', next);
@@ -109,10 +111,12 @@ export function HomeView({
 
   const handleSearch = useCallback(
     (query: string) => {
+      const target = selectedRef.current === '首页' ? '推荐' : selectedRef.current;
+      if (target !== selectedRef.current) setSelectedCategory(target);
       setSearchQuery(query);
-      writeUrl(selectedCategory, query, false);
+      writeUrl(target, query, false);
     },
-    [selectedCategory, writeUrl]
+    [writeUrl]
   );
 
   const handleSelectCategory = useCallback(
@@ -129,30 +133,11 @@ export function HomeView({
     [handleRefresh, writeUrl]
   );
 
-  const openAsk = useCallback((text?: string) => {
-    const next = (text ?? queryRef.current).trim();
-    persistCategory('推荐');
-    writeUrl('推荐', '', false);
-    setSelectedCategory('推荐');
-    setSearchQuery('');
-    if (next) setAskSeed(next);
-    window.setTimeout(() => {
-      document.getElementById('ask')?.scrollIntoView({ block: 'start' });
-      askInputRef.current?.focus();
-    }, 40);
-  }, [writeUrl]);
-
-  const openBrief = useCallback(() => {
-    persistCategory('推荐');
-    writeUrl('推荐', '', false);
-    setSelectedCategory('推荐');
-    setSearchQuery('');
-    window.setTimeout(() => {
-      document.getElementById('brief')?.scrollIntoView({ block: 'start' });
-    }, 40);
-  }, [writeUrl]);
-
   const focusSearch = useCallback(() => {
+    if (selectedRef.current === '首页') {
+      askInputRef.current?.focus();
+      return;
+    }
     const mobile = window.matchMedia('(max-width: 1023px)').matches;
     if (mobile) {
       setSearchOpen(true);
@@ -168,11 +153,13 @@ export function HomeView({
 
   const handleSource = useCallback(
     (source: string) => {
+      const target = selectedRef.current === '首页' ? '推荐' : selectedRef.current;
+      setSelectedCategory(target);
       setSearchQuery(source);
-      writeUrl(selectedCategory, source, false);
+      writeUrl(target, source, false);
       focusSearch();
     },
-    [focusSearch, selectedCategory, writeUrl]
+    [focusSearch, writeUrl]
   );
 
   const handleRefreshed = useCallback(() => {
@@ -184,7 +171,7 @@ export function HomeView({
   useEffect(() => {
     const onPop = () => {
       const params = new URLSearchParams(window.location.search);
-      const nextCategory = params.get('c') || '推荐';
+      const nextCategory = params.get('c') || '首页';
       const nextQuery = params.get('q') || '';
       setSelectedCategory(nextCategory);
       setSearchQuery(nextQuery);
@@ -300,20 +287,22 @@ export function HomeView({
           <p className="min-w-0 flex-1 truncate px-1 text-xs text-zinc-400">
             {cachedAt ? formatUpdatedAt(cachedAt, now) : '聚合资讯'}
           </p>
-          <button
-            type="button"
-            onClick={() => {
-              setSearchOpen((open) => {
-                const next = !open;
-                if (next) window.setTimeout(() => searchRef.current?.focus(), 20);
-                return next;
-              });
-            }}
-            className="inline-flex size-9 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
-            aria-label="搜索"
-          >
-            <SearchIcon />
-          </button>
+          {isHome ? null : (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchOpen((open) => {
+                  const next = !open;
+                  if (next) window.setTimeout(() => searchRef.current?.focus(), 20);
+                  return next;
+                });
+              }}
+              className="inline-flex size-9 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
+              aria-label="搜索"
+            >
+              <SearchIcon />
+            </button>
+          )}
           <button
             type="button"
             onClick={handleRefresh}
@@ -326,7 +315,7 @@ export function HomeView({
           </button>
           <ThemeToggle compact />
         </div>
-        {searchOpen ? (
+        {searchOpen && !isHome ? (
           <div className="px-4 pb-2 lg:hidden">
             <div className="rounded-full bg-zinc-100 px-4 py-2 dark:bg-white/[0.06]">
               <SearchBar
@@ -346,17 +335,6 @@ export function HomeView({
             onSelect={handleSelectCategory}
             onPrefetch={handlePrefetch}
           />
-          <div className="mt-3 flex gap-4 text-sm text-zinc-500">
-            <button type="button" onClick={() => openAsk()} className="hover:text-zinc-800 dark:hover:text-zinc-200">
-              问资讯
-            </button>
-            <button type="button" onClick={openBrief} className="hover:text-zinc-800 dark:hover:text-zinc-200">
-              日报
-            </button>
-            <Link href="/docs" className="hover:text-zinc-800 dark:hover:text-zinc-200">
-              文档
-            </Link>
-          </div>
         </div>
 
         <div className="mx-auto hidden max-w-6xl px-5 py-4 lg:block lg:px-8 lg:py-5">
@@ -375,22 +353,17 @@ export function HomeView({
                 ) : null}
               </p>
             </div>
-            <div className="flex min-w-0 items-center gap-5 lg:w-[32rem]">
-              <div className="min-w-0 flex-1 border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200">
-                <SearchBar
-                  value={searchQuery}
-                  onSearch={handleSearch}
-                  placeholder="搜索标题、摘要或来源"
-                  inputRef={desktopSearchRef}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => openAsk()}
-                className="shrink-0 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
-              >
-                问资讯
-              </button>
+            <div className="flex min-w-0 items-center gap-5 lg:w-[28rem]">
+              {isHome ? null : (
+                <div className="min-w-0 flex-1 border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200">
+                  <SearchBar
+                    value={searchQuery}
+                    onSearch={handleSearch}
+                    placeholder="搜索标题、摘要或来源"
+                    inputRef={desktopSearchRef}
+                  />
+                </div>
+              )}
               <button
                 type="button"
                 onClick={handleRefresh}
@@ -418,13 +391,12 @@ export function HomeView({
           />
         </aside>
         <main id="feed" className="min-w-0">
-          {selectedCategory === '推荐' && !searchQuery ? (
+          {isHome ? (
             <>
               <div className="mb-10">
                 <AskSearch
                   initialQuery={askSeed}
                   autoAsk={Boolean(askSeed)}
-                  showRelated={false}
                   onSource={handleSource}
                   onCategory={handleSelectCategory}
                   inputRef={askInputRef}

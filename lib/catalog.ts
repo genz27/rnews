@@ -177,6 +177,10 @@ export function getCatalogCategories(): string[] {
   return ['推荐', '全部', ...CATEGORY_ORDER];
 }
 
+export function getNavCategories(): string[] {
+  return ['首页', ...getCatalogCategories()];
+}
+
 export function mergeSources(extra: FeedSource[]): FeedSource[] {
   const byUrl = new Map<string, FeedSource>();
   for (const source of [...FEED_CATALOG, ...TOP_RSS_SOURCES]) {
