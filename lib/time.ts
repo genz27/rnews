@@ -7,3 +7,12 @@ export function formatUpdatedAt(cachedAt: number, now = Date.now()): string {
   const days = Math.round(hours / 24);
   return days <= 1 ? '1 天前更新' : `${days} 天前更新`;
 }
+
+export function shanghaiDay(date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}

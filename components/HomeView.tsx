@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { AskSearch } from '@/components/AskSearch';
 import { BackToTop } from '@/components/BackToTop';
 import { BottomNav } from '@/components/BottomNav';
+import { BriefPanel } from '@/components/BriefPanel';
 import { CategoryChips } from '@/components/CategoryChips';
 import { SideNav } from '@/components/SideNav';
 import { SearchBar } from '@/components/SearchBar';
@@ -12,13 +14,15 @@ import { Toast } from '@/components/Toast';
 import { persistCategory } from '@/lib/category-pref';
 import { getCatalogCategories } from '@/lib/catalog';
 import { formatUpdatedAt } from '@/lib/time';
-import { FeedBootstrap } from '@/lib/types';
+import { DailyBrief, FeedBootstrap } from '@/lib/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface HomeViewProps {
   initialBootstrap: FeedBootstrap;
   initialCategory?: string;
   initialQuery?: string;
+  initialAsk?: string;
+  initialBrief?: DailyBrief | null;
   initialCachedAt?: number;
 }
 
@@ -26,6 +30,8 @@ export function HomeView({
   initialBootstrap,
   initialCategory = '推荐',
   initialQuery = '',
+  initialAsk = '',
+  initialBrief = null,
   initialCachedAt,
 }: HomeViewProps) {
   const categories = getCatalogCategories();
@@ -35,11 +41,13 @@ export function HomeView({
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [help, setHelp] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(Boolean(initialQuery));
+  const [searchOpen, setSearchOpen] = useState(true);
+  const [askSeed, setAskSeed] = useState(initialAsk);
   const [cachedAt, setCachedAt] = useState(initialCachedAt);
   const [now, setNow] = useState(() => Date.now());
   const searchRef = useRef<HTMLInputElement>(null);
   const desktopSearchRef = useRef<HTMLInputElement>(null);
+  const askInputRef = useRef<HTMLTextAreaElement>(null);
   const prefetchRef = useRef<(category: string) => void>(() => undefined);
   const selectedRef = useRef(selectedCategory);
   const queryRef = useRef(searchQuery);
@@ -71,6 +79,19 @@ export function HomeView({
     persistCategory(initialCategory);
     writeUrl(initialCategory, initialQuery, false);
   }, [initialCategory, initialQuery, writeUrl]);
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash === '#ask') {
+      window.setTimeout(() => {
+        document.getElementById('ask')?.scrollIntoView({ block: 'start' });
+        askInputRef.current?.focus();
+      }, 40);
+    }
+    if (hash === '#brief') {
+      window.setTimeout(() => document.getElementById('brief')?.scrollIntoView({ block: 'start' }), 40);
+    }
+  }, []);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 30000);
@@ -107,6 +128,29 @@ export function HomeView({
     },
     [handleRefresh, writeUrl]
   );
+
+  const openAsk = useCallback((text?: string) => {
+    const next = (text ?? queryRef.current).trim();
+    persistCategory('推荐');
+    writeUrl('推荐', '', false);
+    setSelectedCategory('推荐');
+    setSearchQuery('');
+    if (next) setAskSeed(next);
+    window.setTimeout(() => {
+      document.getElementById('ask')?.scrollIntoView({ block: 'start' });
+      askInputRef.current?.focus();
+    }, 40);
+  }, [writeUrl]);
+
+  const openBrief = useCallback(() => {
+    persistCategory('推荐');
+    writeUrl('推荐', '', false);
+    setSelectedCategory('推荐');
+    setSearchQuery('');
+    window.setTimeout(() => {
+      document.getElementById('brief')?.scrollIntoView({ block: 'start' });
+    }, 40);
+  }, [writeUrl]);
 
   const focusSearch = useCallback(() => {
     const mobile = window.matchMedia('(max-width: 1023px)').matches;
@@ -302,6 +346,17 @@ export function HomeView({
             onSelect={handleSelectCategory}
             onPrefetch={handlePrefetch}
           />
+          <div className="mt-3 flex gap-4 text-sm text-zinc-500">
+            <button type="button" onClick={() => openAsk()} className="hover:text-zinc-800 dark:hover:text-zinc-200">
+              问资讯
+            </button>
+            <button type="button" onClick={openBrief} className="hover:text-zinc-800 dark:hover:text-zinc-200">
+              日报
+            </button>
+            <Link href="/docs" className="hover:text-zinc-800 dark:hover:text-zinc-200">
+              文档
+            </Link>
+          </div>
         </div>
 
         <div className="mx-auto hidden max-w-6xl px-5 py-4 lg:block lg:px-8 lg:py-5">
@@ -320,7 +375,7 @@ export function HomeView({
                 ) : null}
               </p>
             </div>
-            <div className="flex min-w-0 items-center gap-5 lg:w-[28rem]">
+            <div className="flex min-w-0 items-center gap-5 lg:w-[32rem]">
               <div className="min-w-0 flex-1 border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200">
                 <SearchBar
                   value={searchQuery}
@@ -329,6 +384,13 @@ export function HomeView({
                   inputRef={desktopSearchRef}
                 />
               </div>
+              <button
+                type="button"
+                onClick={() => openAsk()}
+                className="shrink-0 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+              >
+                问资讯
+              </button>
               <button
                 type="button"
                 onClick={handleRefresh}
@@ -356,18 +418,34 @@ export function HomeView({
           />
         </aside>
         <main id="feed" className="min-w-0">
-          <Feed
-            category={selectedCategory}
-            searchQuery={searchQuery}
-            refreshKey={refreshKey}
-            initialBootstrap={initialBootstrap}
-            onBusyChange={handleBusy}
-            onRefreshed={handleRefreshed}
-            onCachedAt={setCachedAt}
-            onSource={handleSource}
-            onCategory={handleSelectCategory}
-            onPrefetch={handleRegisterPrefetch}
-          />
+          {selectedCategory === '推荐' && !searchQuery ? (
+            <>
+              <div className="mb-10">
+                <AskSearch
+                  initialQuery={askSeed}
+                  autoAsk={Boolean(askSeed)}
+                  showRelated={false}
+                  onSource={handleSource}
+                  onCategory={handleSelectCategory}
+                  inputRef={askInputRef}
+                />
+              </div>
+              <BriefPanel initialBrief={initialBrief} />
+            </>
+          ) : (
+            <Feed
+              category={selectedCategory}
+              searchQuery={searchQuery}
+              refreshKey={refreshKey}
+              initialBootstrap={initialBootstrap}
+              onBusyChange={handleBusy}
+              onRefreshed={handleRefreshed}
+              onCachedAt={setCachedAt}
+              onSource={handleSource}
+              onCategory={handleSelectCategory}
+              onPrefetch={handleRegisterPrefetch}
+            />
+          )}
         </main>
       </div>
 
@@ -388,7 +466,7 @@ export function HomeView({
           >
             <p className="mb-3 text-zinc-900 dark:text-zinc-50">快捷键</p>
             <ul className="space-y-2">
-              <li><Kbd>/</Kbd> 或 <Kbd>⌘K</Kbd> 搜索</li>
+              <li><Kbd>/</Kbd> 或 <Kbd>⌘K</Kbd> 搜索标题</li>
               <li><Kbd>R</Kbd> 刷新 / 换一批</li>
               <li><Kbd>J</Kbd> <Kbd>K</Kbd> 上下移动，回车打开</li>
               <li><Kbd>[</Kbd> <Kbd>]</Kbd> 切换分类</li>

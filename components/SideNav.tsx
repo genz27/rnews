@@ -9,6 +9,8 @@ type SideNavProps = {
   onSelect?: (category: string) => void;
   onPrefetch?: (category: string) => void;
   docsActive?: boolean;
+  searchActive?: boolean;
+  briefActive?: boolean;
 };
 
 export function SideNav({
@@ -17,6 +19,8 @@ export function SideNav({
   onSelect,
   onPrefetch,
   docsActive = false,
+  searchActive = false,
+  briefActive = false,
 }: SideNavProps) {
   return (
     <div className="sticky top-28">
@@ -44,24 +48,44 @@ export function SideNav({
       )}
       <div className="mt-8 border-t border-zinc-200/80 pt-4 dark:border-white/[0.06]">
         <p className="mb-2 px-3 text-xs tracking-wide text-zinc-400">更多</p>
-        <Link
-          href="/docs"
-          className={`block rounded-md px-3 py-2 text-sm transition ${
-            docsActive
-              ? 'bg-zinc-100 text-zinc-900 dark:bg-white/[0.06] dark:text-zinc-50'
-              : 'text-zinc-500 hover:bg-zinc-100/70 hover:text-zinc-800 dark:hover:bg-white/[0.04] dark:hover:text-zinc-200'
-          }`}
-        >
+        <NavLink href="/#ask" active={searchActive}>
+          问资讯
+        </NavLink>
+        <NavLink href="/#brief" active={briefActive}>
+          日报
+        </NavLink>
+        <NavLink href="/docs" active={docsActive}>
           文档
-        </Link>
-        {!docsActive ? (
-          <p className="mt-6 px-3 text-[11px] leading-5 text-zinc-400">
-            R 刷新 · / 搜索 · J K 浏览
+        </NavLink>
+        <a
+          href="https://github.com/genz27/rnews"
+          className="mt-6 block px-3 text-[11px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+        >
+          GitHub
+        </a>
+        {onSelect ? (
+          <p className="mt-4 px-3 text-[11px] leading-5 text-zinc-400">
+            R 刷新 · / 筛选 · J K 浏览
             <br />
             [ ] 分类 · ? 快捷键
           </p>
         ) : null}
       </div>
     </div>
+  );
+}
+
+function NavLink({ href, active, children }: { href: string; active?: boolean; children: string }) {
+  return (
+    <Link
+      href={href}
+      className={`block rounded-md px-3 py-2 text-sm transition ${
+        active
+          ? 'bg-zinc-100 text-zinc-900 dark:bg-white/[0.06] dark:text-zinc-50'
+          : 'text-zinc-500 hover:bg-zinc-100/70 hover:text-zinc-800 dark:hover:bg-white/[0.04] dark:hover:text-zinc-200'
+      }`}
+    >
+      {children}
+    </Link>
   );
 }
