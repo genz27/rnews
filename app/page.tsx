@@ -22,7 +22,7 @@ export default async function Page({ searchParams }: PageProps) {
   const fromUrl = categories.includes(params.c || '') ? (params.c as string) : '';
   const query = (params.q || '').trim();
   const view = !fromUrl && !query ? '首页' : fromUrl || '推荐';
-  const category = fromUrl || '推荐';
+  const category = view === '首页' ? '全部' : fromUrl || '推荐';
 
   ensureBackgroundRefresh();
   const snapshot = await fetchAllFeeds();

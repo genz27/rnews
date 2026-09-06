@@ -86,9 +86,7 @@ export function HomeView({
   }, []);
 
   const handleRefresh = useCallback(() => {
-    if (selectedRef.current !== '首页') {
-      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     setRefreshKey((value) => value + 1);
   }, []);
 
@@ -145,7 +143,7 @@ export function HomeView({
   );
 
   const handleRefreshed = useCallback(() => {
-    setToast((selectedCategory === '推荐' || selectedCategory === '首页') && !searchQuery ? '已换一批' : '已更新');
+    setToast(selectedCategory === '推荐' && !searchQuery ? '已换一批' : '已更新');
   }, [searchQuery, selectedCategory]);
 
   const clearToast = useCallback(() => setToast(null), []);
@@ -372,7 +370,13 @@ export function HomeView({
         </aside>
         <main id="feed" className="min-w-0">
           <Feed
-            category={isHome ? '推荐' : selectedCategory === '全部' || getCatalogCategories().includes(selectedCategory) ? selectedCategory : '推荐'}
+            category={
+              isHome || selectedCategory === '全部'
+                ? '全部'
+                : getCatalogCategories().includes(selectedCategory)
+                  ? selectedCategory
+                  : '全部'
+            }
             searchQuery={searchQuery}
             refreshKey={refreshKey}
             initialBootstrap={initialBootstrap}
