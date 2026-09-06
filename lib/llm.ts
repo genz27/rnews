@@ -142,10 +142,31 @@ function citationSources(value: unknown): Array<{ href: string; title?: string }
       continue;
     }
     if (item && typeof item === 'object') {
-      const record = item as { url?: unknown; uri?: unknown; title?: unknown; name?: unknown };
-      const href = typeof record.url === 'string' ? record.url : typeof record.uri === 'string' ? record.uri : '';
+      const record = item as {
+        url?: unknown;
+        uri?: unknown;
+        link?: unknown;
+        title?: unknown;
+        name?: unknown;
+        headline?: unknown;
+      };
+      const href =
+        typeof record.url === 'string'
+          ? record.url
+          : typeof record.uri === 'string'
+            ? record.uri
+            : typeof record.link === 'string'
+              ? record.link
+              : '';
       if (!href.startsWith('http')) continue;
-      const title = typeof record.title === 'string' ? record.title : typeof record.name === 'string' ? record.name : '';
+      const title =
+        typeof record.title === 'string'
+          ? record.title
+          : typeof record.headline === 'string'
+            ? record.headline
+            : typeof record.name === 'string'
+              ? record.name
+              : '';
       sources.push({ href, title: title || undefined });
     }
   }
