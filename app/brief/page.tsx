@@ -1,6 +1,9 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
+import { BriefFallback } from '@/components/BriefFallback';
+import { BriefPanel } from '@/components/BriefPanel';
 import { BriefView } from '@/components/BriefView';
-import { readCachedBrief } from '@/lib/brief';
+import { getDailyBrief } from '@/lib/brief';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +12,17 @@ export const metadata: Metadata = {
   description: '半日新闻摘要',
 };
 
-export default async function BriefPage() {
-  const initialBrief = await readCachedBrief();
-  return <BriefView initialBrief={initialBrief} />;
+export default function BriefPage() {
+  return (
+    <BriefView>
+      <Suspense fallback={<BriefFallback />}>
+        <BriefLoader />
+      </Suspense>
+    </BriefView>
+  );
+}
+
+async function BriefLoader() {
+  const initialBrief = await getDailyBrief();
+  return <BriefPanel initialBrief={initialBrief} showHeading={false} />;
 }

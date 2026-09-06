@@ -74,6 +74,12 @@ export function BriefPanel({
         <div className={fill ? 'mt-3 min-h-0 flex-1 overflow-hidden' : 'mt-4'}>
           <MarkdownText text={brief.markdown} compact={fill} />
         </div>
+      ) : busy ? (
+        <div className="mt-4 space-y-3">
+          {Array.from({ length: 6 }, (_, index) => (
+            <div key={index} className="h-5 rounded skeleton-line" />
+          ))}
+        </div>
       ) : null}
     </section>
   );

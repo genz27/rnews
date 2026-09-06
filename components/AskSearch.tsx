@@ -1,6 +1,7 @@
 'use client';
 
 import { MarkdownText } from '@/components/MarkdownText';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 
 export type AskTurn = {
@@ -12,7 +13,8 @@ export type AskTurn = {
 };
 
 const EXAMPLES = ['今天有什么重要新闻', 'AI 有什么新进展', '社区在聊什么'];
-const STORAGE_KEY = 'rnews-ask-thread';
+const FOLLOWUPS = ['依据是什么', '还有哪些说法', '这对行业意味着什么'];
+const OLD_THREAD_KEY = 'rnews-ask-thread';
 
 function readImage(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -23,73 +25,85 @@ function readImage(file: File) {
   });
 }
 
-function loadTurns(): AskTurn[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as AskTurn[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((turn) => turn && typeof turn.query === 'string')
-      .slice(-24)
-      .map((turn) => ({
-        id: String(turn.id || `${Date.now()}`),
-        query: turn.query,
-        images: [],
-        answer: typeof turn.answer === 'string' ? turn.answer : '',
-        error: typeof turn.error === 'string' ? turn.error : undefined,
-      }));
-  } catch {
-    return [];
+function extractSources(text: string) {
+  const seen = new Set<string>();
+  const sources: { href: string; host: string }[] = [];
+  const matches = text.match(/https?:\/\/[^\s)\]>'"]+/g) || [];
+  for (const raw of matches) {
+    const href = raw.replace(/[)，。,.!！?？;；]+$/g, '');
+    if (seen.has(href)) continue;
+    seen.add(href);
+    try {
+      sources.push({ href, host: new URL(href).hostname.replace(/^www\./, '') });
+    } catch {
+      /* skip */
+    }
+    if (sources.length >= 8) break;
   }
-}
-
-function saveTurns(turns: AskTurn[]) {
-  try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(turns.slice(-24).map((turn) => ({ ...turn, images: [] })))
-    );
-  } catch {
-    /* quota */
-  }
+  return sources;
 }
 
 export function AskSearch({
   initialQuery = '',
   autoAsk = false,
-  persist = false,
-  layout = 'embed',
   inputRef,
   onClearRef,
+  onActiveChange,
 }: {
   initialQuery?: string;
   autoAsk?: boolean;
-  persist?: boolean;
-  layout?: 'embed' | 'page';
   inputRef?: RefObject<HTMLTextAreaElement | null>;
   onClearRef?: RefObject<(() => void) | null>;
+  onActiveChange?: (active: boolean) => void;
 }) {
-  const [query, setQuery] = useState(initialQuery);
+  const router = useRouter();
+  const [query, setQuery] = useState(autoAsk ? '' : initialQuery);
   const [images, setImages] = useState<string[]>([]);
   const [turns, setTurns] = useState<AskTurn[]>([]);
   const [streaming, setStreaming] = useState(false);
-  const [openThread, setOpenThread] = useState(!persist);
   const abortRef = useRef<AbortController | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const askedRef = useRef('');
   const localInputRef = useRef<HTMLTextAreaElement>(null);
   const boxRef = inputRef || localInputRef;
-  const [ready, setReady] = useState(!persist);
+  const pendingRef = useRef<Record<string, string>>({});
+  const rafRef = useRef(0);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const resizeBox = () => {
+    const el = boxRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  };
+
+  const flushPending = () => {
+    rafRef.current = 0;
+    const pending = pendingRef.current;
+    pendingRef.current = {};
+    const ids = Object.keys(pending);
+    if (ids.length === 0) return;
+    setTurns((current) =>
+      current.map((turn) => (pending[turn.id] ? { ...turn, answer: turn.answer + pending[turn.id] } : turn))
+    );
+  };
+
+  const appendDelta = (id: string, text: string) => {
+    pendingRef.current[id] = (pendingRef.current[id] || '') + text;
+    if (!rafRef.current) rafRef.current = requestAnimationFrame(flushPending);
+  };
 
   const clearThread = () => {
     abortRef.current?.abort();
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = 0;
+    pendingRef.current = {};
     setTurns([]);
     setQuery('');
     setImages([]);
     askedRef.current = '';
-    setOpenThread(false);
-    if (persist) localStorage.removeItem(STORAGE_KEY);
+    router.replace('/ask');
+    window.setTimeout(() => boxRef.current?.focus(), 20);
   };
 
   const ask = async (nextQuery = query, nextImages = images) => {
@@ -101,16 +115,21 @@ export function AskSearch({
     const id = `${Date.now()}`;
     const history = turns
       .filter((turn) => turn.answer && !turn.error)
-      .slice(-8)
+      .slice(-6)
       .flatMap((turn) => [
         { role: 'user', content: turn.query },
         { role: 'assistant', content: turn.answer },
       ]);
-    setOpenThread(true);
+    const first = turns.length === 0;
     setTurns((current) => [...current, { id, query: text, images: nextImages, answer: '' }]);
     setQuery('');
     setImages([]);
     setStreaming(true);
+    if (first) router.replace(`/ask?q=${encodeURIComponent(text)}`);
+    window.setTimeout(() => {
+      resizeBox();
+      bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    }, 20);
     try {
       const response = await fetch('/api/search', {
         method: 'POST',
@@ -151,10 +170,9 @@ export function AskSearch({
               message?: string;
             };
             if (event.type === 'delta' && event.text) {
-              setTurns((current) =>
-                current.map((turn) => (turn.id === id ? { ...turn, answer: turn.answer + event.text } : turn))
-              );
+              appendDelta(id, event.text);
             } else if (event.type === 'error') {
+              flushPending();
               setTurns((current) =>
                 current.map((turn) => (turn.id === id ? { ...turn, error: event.message || '搜索失败' } : turn))
               );
@@ -164,14 +182,17 @@ export function AskSearch({
           }
         }
       }
+      flushPending();
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
+      flushPending();
       setTurns((current) =>
         current.map((turn) => (turn.id === id ? { ...turn, error: '搜索失败，请再试一次。' } : turn))
       );
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
       setStreaming(false);
+      window.setTimeout(() => boxRef.current?.focus(), 40);
     }
   };
 
@@ -180,37 +201,41 @@ export function AskSearch({
   });
 
   useEffect(() => {
-    if (!persist) return;
-    setTurns(loadTurns());
-    setReady(true);
-  }, [persist]);
+    onActiveChange?.(turns.length > 0);
+  }, [onActiveChange, turns.length]);
 
   useEffect(() => {
-    if (!persist || !ready || streaming) return;
-    saveTurns(turns);
-  }, [persist, ready, streaming, turns]);
+    try {
+      localStorage.removeItem(OLD_THREAD_KEY);
+    } catch {
+      /* ignore */
+    }
+    boxRef.current?.focus();
+  }, [boxRef]);
 
   useEffect(() => {
-    if (!ready || !autoAsk) return;
     const text = initialQuery.trim();
-    if (!text || askedRef.current === text) return;
+    if (!autoAsk || !text || askedRef.current === text) return;
     askedRef.current = text;
-    setOpenThread(true);
     void ask(text, []);
     // Ask when /ask?q= is passed
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoAsk, initialQuery, ready]);
+  }, [autoAsk, initialQuery]);
 
   const addImages = async (files: FileList | null) => {
     if (!files?.length) return;
-    const picked = Array.from(files).filter((file) => file.type.startsWith('image/')).slice(0, 6 - images.length);
+    const picked = Array.from(files)
+      .filter((file) => file.type.startsWith('image/'))
+      .slice(0, 6 - images.length);
     const urls = await Promise.all(picked.map((file) => readImage(file)));
     setImages((current) => [...current, ...urls].slice(0, 6));
   };
 
+  const empty = turns.length === 0;
+
   const composer = (
     <form
-      className="border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200"
+      className="rounded-2xl border border-zinc-200/80 bg-zinc-50 px-4 py-3 shadow-sm dark:border-white/[0.08] dark:bg-zinc-900/80"
       onSubmit={(event) => {
         event.preventDefault();
         void ask();
@@ -226,26 +251,29 @@ export function AskSearch({
               className="overflow-hidden rounded-md border border-zinc-200/80 dark:border-white/[0.08]"
               title="移除图片"
             >
-              <img src={src} alt="" className="size-16 object-cover" />
+              <img src={src} alt="" className="size-14 object-cover" />
             </button>
           ))}
         </div>
       ) : null}
-      <div className="flex items-end gap-3">
-        <textarea
-          ref={boxRef}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              void ask();
-            }
-          }}
-          rows={2}
-          placeholder="用 AI 搜索今日资讯"
-          className="min-h-11 min-w-0 flex-1 resize-none bg-transparent text-sm leading-6 text-zinc-800 outline-none placeholder:text-zinc-400 dark:text-zinc-200 dark:placeholder:text-zinc-600"
-        />
+      <textarea
+        ref={boxRef}
+        value={query}
+        onChange={(event) => {
+          setQuery(event.target.value);
+          window.requestAnimationFrame(resizeBox);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            void ask();
+          }
+        }}
+        rows={1}
+        placeholder={empty ? '有问题就搜，比如今天 AI 有什么新闻' : '继续追问'}
+        className="max-h-40 min-h-7 w-full resize-none bg-transparent text-[15px] leading-7 text-zinc-800 outline-none placeholder:text-zinc-400 dark:text-zinc-200 dark:placeholder:text-zinc-600"
+      />
+      <div className="mt-2 flex items-center justify-between gap-3">
         <input
           ref={fileRef}
           type="file"
@@ -260,7 +288,7 @@ export function AskSearch({
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          className="shrink-0 pb-1 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+          className="text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
         >
           图片
         </button>
@@ -268,7 +296,7 @@ export function AskSearch({
           <button
             type="button"
             onClick={() => abortRef.current?.abort()}
-            className="shrink-0 pb-1 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+            className="text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
           >
             停止
           </button>
@@ -276,7 +304,7 @@ export function AskSearch({
           <button
             type="submit"
             disabled={!query.trim()}
-            className="shrink-0 pb-1 text-sm text-zinc-500 transition hover:text-zinc-800 disabled:opacity-40 dark:hover:text-zinc-200"
+            className="text-sm text-zinc-500 transition hover:text-zinc-800 disabled:opacity-40 dark:hover:text-zinc-200"
           >
             搜索
           </button>
@@ -285,65 +313,97 @@ export function AskSearch({
     </form>
   );
 
-  const examples = (
-    <div className="mt-4 flex flex-wrap gap-2">
-      {EXAMPLES.map((example) => (
-        <button
-          key={example}
-          type="button"
-          onClick={() => void ask(example, [])}
-          className="rounded-full border border-zinc-200/80 px-3 py-1.5 text-[13px] text-zinc-500 transition hover:border-zinc-400 hover:text-zinc-800 dark:border-white/[0.08] dark:hover:border-white/20 dark:hover:text-zinc-200"
-        >
-          {example}
-        </button>
-      ))}
-    </div>
-  );
-
-  const thread = (
-    <div className="mt-2">
-      {turns.map((turn, index) => (
-        <section key={turn.id} className="border-b border-zinc-200/80 py-6 last:border-b-0 dark:border-white/[0.06]">
-          <h2 className="text-base font-medium leading-7 tracking-tight text-zinc-900 lg:text-[17px] lg:leading-8 dark:text-zinc-50">
-            {turn.query}
-          </h2>
-          {turn.images.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {turn.images.map((src, imageIndex) => (
-                <img key={imageIndex} src={src} alt="" className="size-16 rounded-md object-cover" />
-              ))}
-            </div>
-          ) : null}
-          {turn.error ? (
-            <p className="mt-4 text-sm leading-7 text-zinc-500">{turn.error}</p>
-          ) : turn.answer ? (
-            <div className="mt-4">
-              <MarkdownText text={turn.answer} />
-            </div>
-          ) : streaming && index === turns.length - 1 ? (
-            <p className="mt-4 text-sm text-zinc-500">正在搜索…</p>
-          ) : null}
-        </section>
-      ))}
-    </div>
-  );
-
   return (
-    <div id="ask" className={layout === 'page' ? 'lg:mt-6' : undefined}>
-      {layout === 'page' ? null : (
-        <h2 className="mb-3 text-base font-medium tracking-tight text-zinc-900 dark:text-zinc-50">AI 搜索</h2>
+    <div id="ask" className={empty ? 'flex min-h-[calc(100dvh-14rem)] flex-col justify-center lg:min-h-[calc(100dvh-12rem)]' : undefined}>
+      {empty ? (
+        <div className="mx-auto w-full max-w-2xl pb-10">
+          <h1 className="text-center text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">AI 搜索</h1>
+          <p className="mt-2 text-center text-sm text-zinc-500">先搜，再往下看来源和追问</p>
+          <div className="mt-8">{composer}</div>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            {EXAMPLES.map((example) => (
+              <button
+                key={example}
+                type="button"
+                onClick={() => void ask(example, [])}
+                className="rounded-full border border-zinc-200/80 px-3 py-1.5 text-[13px] text-zinc-500 transition hover:border-zinc-400 hover:text-zinc-800 dark:border-white/[0.08] dark:hover:border-white/20 dark:hover:text-zinc-200"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="mx-auto w-full max-w-2xl pb-36 lg:pb-28">
+            {turns.map((turn, index) => {
+              const sources = extractSources(turn.answer);
+              const last = index === turns.length - 1;
+              return (
+                <section key={turn.id} className="border-b border-zinc-200/80 py-8 last:border-b-0 dark:border-white/[0.06]">
+                  <h2 className="text-xl font-semibold leading-8 tracking-tight text-zinc-900 dark:text-zinc-50">
+                    {turn.query}
+                  </h2>
+                  {turn.images.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {turn.images.map((src, imageIndex) => (
+                        <img key={imageIndex} src={src} alt="" className="size-14 rounded-md object-cover" />
+                      ))}
+                    </div>
+                  ) : null}
+                  {turn.error ? (
+                    <p className="mt-5 text-sm leading-7 text-zinc-500">{turn.error}</p>
+                  ) : turn.answer ? (
+                    <div className="mt-5">
+                      <MarkdownText text={turn.answer} />
+                    </div>
+                  ) : streaming && last ? (
+                    <p className="loading-dots mt-5 text-sm text-zinc-500">
+                      正在搜索
+                      <span>.</span>
+                      <span>.</span>
+                      <span>.</span>
+                    </p>
+                  ) : null}
+                  {sources.length > 0 ? (
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {sources.map((source) => (
+                        <a
+                          key={source.href}
+                          href={source.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-full border border-zinc-200/80 px-2.5 py-1 text-[12px] text-zinc-500 transition hover:border-zinc-400 hover:text-zinc-800 dark:border-white/[0.08] dark:hover:border-white/20 dark:hover:text-zinc-200"
+                        >
+                          {source.host}
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
+                  {last && !streaming && !turn.error ? (
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {FOLLOWUPS.map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => void ask(item, [])}
+                          className="rounded-full border border-zinc-200/80 px-3 py-1.5 text-[13px] text-zinc-500 transition hover:border-zinc-400 hover:text-zinc-800 dark:border-white/[0.08] dark:hover:border-white/20 dark:hover:text-zinc-200"
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </section>
+              );
+            })}
+            <div ref={bottomRef} />
+          </div>
+          <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 px-4 lg:bottom-6 lg:px-8">
+            <div className="mx-auto w-full max-w-2xl">{composer}</div>
+          </div>
+        </>
       )}
-      {composer}
-      {!openThread && turns.length > 0 ? (
-        <button
-          type="button"
-          onClick={() => setOpenThread(true)}
-          className="mt-4 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
-        >
-          继续上次对话（{turns.length}）
-        </button>
-      ) : null}
-      {!openThread || turns.length === 0 ? examples : thread}
     </div>
   );
 }

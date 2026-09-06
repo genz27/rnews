@@ -67,7 +67,7 @@ Content-Type: application/json
 }`}</Code>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li><code>query</code> 必填，最长 4000 字</li>
-          <li><code>history</code> 可选，最近 8 轮，用于持续对话</li>
+          <li><code>history</code> 可选，最近几轮，仅用于当次追问，页面不保存旧对话</li>
           <li><code>images</code> 可选，最多 6 张 <code>data:image/...</code></li>
         </ul>
         <p className="mt-2">
