@@ -100,16 +100,14 @@ export function PageShell({
               >
                 日报
               </Link>
-              <Link
-                href="/ask"
-                className={`shrink-0 text-sm transition ${
-                  searchActive
-                    ? 'text-zinc-900 dark:text-zinc-50'
-                    : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
-                }`}
-              >
-                AI 搜索
-              </Link>
+              {searchActive ? null : (
+                <Link
+                  href="/ask"
+                  className="shrink-0 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+                >
+                  AI 搜索
+                </Link>
+              )}
               <ThemeToggle />
             </div>
           </div>
