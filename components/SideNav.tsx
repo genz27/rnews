@@ -38,7 +38,7 @@ export function SideNav({
           {categories.map((category) => (
             <Link
               key={category}
-              href={category === '推荐' ? '/' : `/?c=${encodeURIComponent(category)}`}
+              href={category === '首页' ? '/' : `/?c=${encodeURIComponent(category)}`}
               className="rounded-md px-3 py-2 text-sm text-zinc-500 transition hover:bg-zinc-100/70 hover:text-zinc-800 dark:hover:bg-white/[0.04] dark:hover:text-zinc-200"
             >
               {category}
@@ -49,7 +49,7 @@ export function SideNav({
       <div className="mt-8 border-t border-zinc-200/80 pt-4 dark:border-white/[0.06]">
         <p className="mb-2 px-3 text-xs tracking-wide text-zinc-400">更多</p>
         <NavLink href="/#ask" active={searchActive}>
-          问资讯
+          AI 搜索
         </NavLink>
         <NavLink href="/#brief" active={briefActive}>
           日报

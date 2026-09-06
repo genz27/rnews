@@ -152,7 +152,7 @@ export function AskSearch({
     if (!text || askedRef.current === text) return;
     askedRef.current = text;
     void ask(text, []);
-    // Ask when the homepage passes ?ask= or 问资讯
+    // Ask when the homepage passes ?ask=
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoAsk, initialQuery]);
 
@@ -165,7 +165,7 @@ export function AskSearch({
 
   return (
     <div id="ask">
-      <h2 className="mb-3 text-base font-medium tracking-tight text-zinc-900 dark:text-zinc-50">问资讯</h2>
+      <h2 className="mb-3 text-base font-medium tracking-tight text-zinc-900 dark:text-zinc-50">AI 搜索</h2>
       <form
         className="border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200"
         onSubmit={(event) => {
@@ -200,7 +200,7 @@ export function AskSearch({
               }
             }}
             rows={2}
-            placeholder="问今日资讯"
+            placeholder="用 AI 搜索今日资讯"
             className="min-h-12 w-full resize-none bg-transparent text-sm leading-6 text-zinc-800 outline-none placeholder:text-zinc-400 dark:text-zinc-200 dark:placeholder:text-zinc-600"
           />
           <input

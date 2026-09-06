@@ -1,11 +1,11 @@
 'use client';
 
 const TABS = [
+  { id: '首页', label: '首页' },
   { id: '推荐', label: '推荐' },
   { id: '社区', label: '社区' },
   { id: 'AI', label: 'AI' },
   { id: '资讯', label: '资讯' },
-  { id: '全部', label: '全部' },
 ] as const;
 
 export function BottomNav({
@@ -15,7 +15,7 @@ export function BottomNav({
   selected: string;
   onSelect: (category: string) => void;
 }) {
-  const active = TABS.some((tab) => tab.id === selected) ? selected : '全部';
+  const active = TABS.some((tab) => tab.id === selected) ? selected : selected === '全部' ? '' : '首页';
 
   return (
     <nav
@@ -52,8 +52,10 @@ function TabIcon({ name, active }: { name: string; active: boolean }) {
   const stroke = active ? 1.8 : 1.5;
   return (
     <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth={stroke} aria-hidden>
-      {name === '推荐' ? (
+      {name === '首页' ? (
         <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z" strokeLinejoin="round" />
+      ) : name === '推荐' ? (
+        <path d="M5 7h14M5 12h8M5 17h11" strokeLinecap="round" />
       ) : name === '社区' ? (
         <>
           <circle cx="8" cy="9" r="2.2" />
