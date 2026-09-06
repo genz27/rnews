@@ -27,6 +27,7 @@ export async function completeChat(options: {
   messages: ChatMessage[];
   stream?: false;
   maxTokens?: number;
+  timeoutMs?: number;
 }): Promise<string> {
   const { apiKey, baseUrl, model } = llmConfig();
   if (!apiKey) throw new Error('模型未配置');
@@ -42,7 +43,7 @@ export async function completeChat(options: {
       stream: false,
       max_completion_tokens: options.maxTokens ?? 1800,
     }),
-    signal: AbortSignal.timeout(55000),
+    signal: AbortSignal.timeout(options.timeoutMs ?? 55000),
   });
   if (!response.ok) {
     const text = await response.text();

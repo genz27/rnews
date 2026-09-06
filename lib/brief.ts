@@ -2,7 +2,6 @@ import { mkdir, readFile, writeFile } from 'fs/promises';
 import { revalidateTag, unstable_cache } from 'next/cache';
 import path from 'path';
 import { completeChat } from './llm';
-import { formatNewsContext } from './news-search';
 import { fetchAllFeeds, filterItems } from './rss';
 import { shanghaiDay } from './time';
 import { applyTranslation } from './translate';
@@ -42,6 +41,44 @@ function shortSource(source: string) {
   return next || source;
 }
 
+function isCommitNoise(item: FeedItem) {
+  if (/\/commit\//i.test(item.link)) return true;
+  if (/commits$/i.test(item.source)) return true;
+  return /^(fix|feat|chore|perf|test|docs|refactor)\s*[\(:]/i.test(item.title);
+}
+
+function clipFact(text: string, max = 96) {
+  const compact = text.replace(/\s+/g, ' ').trim();
+  if (compact.length <= max) return compact;
+  const slice = compact.slice(0, max);
+  const breakAt = Math.max(slice.lastIndexOf('。'), slice.lastIndexOf('，'), slice.lastIndexOf(' '));
+  const cut = breakAt > max * 0.55 ? slice.slice(0, breakAt) : slice;
+  return cut.replace(/[，,;；:\s]+$/g, '');
+}
+
+function pickBriefItems(items: FeedItem[], limit: number) {
+  const usable = items.filter((item) => !isCommitNoise(item));
+  const source = usable.length >= 12 ? usable : items;
+  const picked: FeedItem[] = [];
+  const seen = new Set<string>();
+  const counts = new Map<string, number>();
+  for (const item of source) {
+    const n = counts.get(item.source) || 0;
+    if (n >= 3) continue;
+    counts.set(item.source, n + 1);
+    seen.add(item.id || item.link);
+    picked.push(item);
+    if (picked.length >= limit) return picked;
+  }
+  for (const item of source) {
+    const key = item.id || item.link;
+    if (seen.has(key)) continue;
+    picked.push(item);
+    if (picked.length >= limit) break;
+  }
+  return picked;
+}
+
 function isAiItem(item: FeedItem) {
   if (item.category === 'AI') return true;
   return AI_HINT.test(`${item.title} ${item.titleZh || ''} ${item.snippet || ''} ${item.source}`);
@@ -50,12 +87,24 @@ function isAiItem(item: FeedItem) {
 function oneLine(item: FeedItem) {
   const title = (item.titleZh || item.title).replace(/\s+/g, ' ').trim();
   const snippet = (item.snippet || '').replace(/\s+/g, ' ').trim();
-  const fact = snippet && !title.includes(snippet.slice(0, 18)) ? `${title}。${snippet}` : title;
-  return `・${shortSource(item.source)} ${fact} ${item.link}`;
+  const fact =
+    snippet && !title.includes(snippet.slice(0, 18)) ? `${title}。${snippet}` : title;
+  return `・${shortSource(item.source)} ${clipFact(fact)} ${item.link}`;
 }
 
 function feedFooter(checked: number, ok: number, selected: number) {
   return `来源：${checked} feeds 检查 / ${ok} feeds 成功 / ${selected} 条精选`;
+}
+
+function mentionsLink(markdown: string, link: string) {
+  if (markdown.includes(link)) return true;
+  try {
+    const url = new URL(link);
+    const hostPath = `${url.host}${url.pathname}`.replace(/\/+$/, '');
+    return hostPath.length > 16 && markdown.includes(hostPath);
+  } catch {
+    return false;
+  }
 }
 
 function countPicks(markdown: string) {
@@ -98,12 +147,12 @@ export function extractBrief(date: string, items: FeedItem[], checked: number, o
   };
 }
 
-async function todayPool(limit = 64): Promise<BriefPool> {
+async function todayPool(limit = 40): Promise<BriefPool> {
   const snapshot = await fetchAllFeeds();
   const today = filterItems(snapshot.items, '推荐').map((item) => applyTranslation(item));
   const source = today.length >= 8 ? today : snapshot.items.map((item) => applyTranslation(item));
   return {
-    items: source.slice(0, limit),
+    items: pickBriefItems(source, limit),
     checked: snapshot.sources,
     ok: snapshot.ok,
   };
@@ -141,7 +190,7 @@ export async function readCachedBrief(): Promise<DailyBrief | null> {
 
 async function generateDailyBrief(): Promise<DailyBrief> {
   const date = shanghaiDay();
-  const pool = await todayPool(64);
+  const pool = await todayPool(36);
   const fallback = extractBrief(date, pool.items, pool.checked, pool.ok);
   if (pool.items.length === 0) {
     await writeBrief(fallback);
@@ -149,9 +198,10 @@ async function generateDailyBrief(): Promise<DailyBrief> {
   }
 
   try {
-    const sample = pool.items.slice(0, 48);
+    const sample = pool.items.slice(0, 28);
     const markdown = await completeChat({
-      maxTokens: 2200,
+      maxTokens: 1400,
+      timeoutMs: 48000,
       messages: [
         {
           role: 'system',
@@ -183,11 +233,13 @@ AI 焦点
 - 最后一行 {n} 改成实际精选条数
 
 条目：
-${formatNewsContext(sample)}`,
+${sample
+  .map((item, index) => `${index + 1}. [${item.category}] ${item.source} ${item.titleZh || item.title}\n   ${item.link}`)
+  .join('\n')}`,
         },
       ],
     });
-    const grounded = sample.filter((item) => markdown.includes(item.link)).length;
+    const grounded = sample.filter((item) => mentionsLink(markdown, item.link)).length;
     if (markdown.length > 40 && grounded >= 3) {
       const selected = countPicks(markdown) || fallback.itemCount;
       const brief: DailyBrief = {
@@ -202,6 +254,7 @@ ${formatNewsContext(sample)}`,
       await writeBrief(brief);
       return brief;
     }
+    console.warn(`Daily brief not grounded (${grounded} links, ${markdown.length} chars)`);
   } catch (error) {
     console.warn('Daily brief LLM failed:', error instanceof Error ? error.message : error);
   }
