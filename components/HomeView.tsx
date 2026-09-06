@@ -45,7 +45,8 @@ export function HomeView({
   const prefetchRef = useRef<(category: string) => void>(() => undefined);
   const selectedRef = useRef(selectedCategory);
   const queryRef = useRef(searchQuery);
-  const isHome = selectedCategory === '首页';
+  const isHome = selectedCategory === '首页' || selectedCategory === '全部';
+  const navSelected = isHome ? '首页' : selectedCategory;
 
   useEffect(() => {
     selectedRef.current = selectedCategory;
@@ -231,7 +232,7 @@ export function HomeView({
       }
       if (event.key === ']' || event.key === '[') {
         event.preventDefault();
-        const current = Math.max(0, categories.indexOf(selectedCategory));
+        const current = Math.max(0, categories.indexOf(selectedCategory === '全部' ? '首页' : selectedCategory));
         const next = event.key === ']' ? Math.min(categories.length - 1, current + 1) : Math.max(0, current - 1);
         if (categories[next]) handleSelectCategory(categories[next]);
         return;
@@ -309,7 +310,7 @@ export function HomeView({
           <CategoryChips
             layout="pills"
             categories={categories}
-            selected={selectedCategory}
+            selected={navSelected}
             onSelect={handleSelectCategory}
             onPrefetch={handlePrefetch}
           />
@@ -363,7 +364,7 @@ export function HomeView({
         <aside className="hidden lg:block">
           <SideNav
             categories={categories}
-            selected={selectedCategory}
+            selected={navSelected}
             onSelect={handleSelectCategory}
             onPrefetch={handlePrefetch}
           />
@@ -391,7 +392,7 @@ export function HomeView({
         </main>
       </div>
 
-      <BottomNav selected={selectedCategory} onSelect={handleSelectCategory} />
+      <BottomNav selected={navSelected} onSelect={handleSelectCategory} />
       <BackToTop />
       <Toast message={toast} onDone={clearToast} />
 
