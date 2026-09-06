@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from 'react';
 
-const SECTION = /^(AI 焦点|其他资讯|今日要点|今日观察)$/;
+const SECTION = /^(AI 焦点|其他资讯|今日要点|今日观察|来源|追问)$/;
 const LIST = /^[-*・·]\s*/;
 const FOOTER = /^来源：/;
 const RULE = /^(─{3,}|-{3,})$/;
@@ -9,11 +9,28 @@ function trimUrl(url: string) {
   return url.replace(/[)，。,.!！?？;；]+$/g, '');
 }
 
-function renderInline(text: string, compact = false) {
-  const parts = text.split(/(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*|https?:\/\/[^\s<>"']+)/g);
+function citationBadge(label: string, href: string, key: number) {
+  return (
+    <a
+      key={key}
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-sm bg-zinc-100 px-1 align-super text-[10px] leading-none text-zinc-500 hover:bg-zinc-200 hover:text-zinc-800 dark:bg-white/[0.08] dark:text-zinc-400 dark:hover:bg-white/[0.14] dark:hover:text-zinc-200"
+    >
+      {label}
+    </a>
+  );
+}
+
+function renderInline(text: string, compact = false, sources: Array<{ href: string }> = []) {
+  const parts = text.split(/(\[\[[^\]]+\]\]\([^)]+\)|\[[^\]]+\]\([^)]+\)|\[\d+\]|\*\*[^*]+\*\*|https?:\/\/[^\s<>"']+)/g);
   return parts.map((part, index) => {
+    const numbered = /^\[\[([^\]]+)\]\]\(([^)]+)\)$/.exec(part) || /^\[(\d+)\]\(([^)]+)\)$/.exec(part);
+    if (numbered) return citationBadge(numbered[1], numbered[2], index);
     const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
     if (link) {
+      if (/^\[?\d+\]?$/.test(link[1].trim())) return citationBadge(link[1].replace(/\D/g, '') || link[1], link[2], index);
       return (
         <a
           key={index}
@@ -25,6 +42,11 @@ function renderInline(text: string, compact = false) {
           {link[1]}
         </a>
       );
+    }
+    const bare = /^\[(\d+)\]$/.exec(part);
+    if (bare) {
+      const source = sources[Number(bare[1]) - 1];
+      if (source) return citationBadge(bare[1], source.href, index);
     }
     const bold = /^\*\*([^*]+)\*\*$/.exec(part);
     if (bold) return <strong key={index}>{bold[1]}</strong>;
@@ -71,7 +93,15 @@ function headingText(line: string) {
   return line.trim().replace(/^#{1,3}\s+/, '');
 }
 
-function MarkdownBody({ text, compact = false }: { text: string; compact?: boolean }) {
+function MarkdownBody({
+  text,
+  compact = false,
+  sources = [],
+}: {
+  text: string;
+  compact?: boolean;
+  sources?: Array<{ href: string }>;
+}) {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const blocks: ReactNode[] = [];
   let index = 0;
@@ -86,7 +116,7 @@ function MarkdownBody({ text, compact = false }: { text: string; compact?: boole
       const key = `h-${index}`;
       blocks.push(
         <h3 key={key} className={`font-medium text-zinc-900 dark:text-zinc-100 ${compact ? 'pt-0.5 text-[13px]' : 'pt-1 text-sm'}`}>
-          {renderInline(headingText(lines[index]), compact)}
+          {renderInline(headingText(lines[index]), compact, sources)}
         </h3>
       );
       index += 1;
@@ -95,7 +125,7 @@ function MarkdownBody({ text, compact = false }: { text: string; compact?: boole
     if (kind === 'footer') {
       blocks.push(
         <p key={`f-${index}`} className="pt-2 text-xs text-zinc-400 dark:text-zinc-500">
-          {renderInline(lines[index].trim(), compact)}
+          {renderInline(lines[index].trim(), compact, sources)}
         </p>
       );
       index += 1;
@@ -113,7 +143,7 @@ function MarkdownBody({ text, compact = false }: { text: string; compact?: boole
           {items.map((item, itemIndex) => (
             <li key={itemIndex} className="brief-row flex gap-2">
               <span className="shrink-0 text-zinc-400">・</span>
-              <span className="min-w-0">{renderInline(item, compact)}</span>
+              <span className="min-w-0">{renderInline(item, compact, sources)}</span>
             </li>
           ))}
         </ul>
@@ -131,7 +161,7 @@ function MarkdownBody({ text, compact = false }: { text: string; compact?: boole
       <p key={`p-${start}`}>
         {chunk.map((line, lineIndex) => (
           <span key={lineIndex}>
-            {renderInline(line, compact)}
+            {renderInline(line, compact, sources)}
             {lineIndex < chunk.length - 1 ? <br /> : null}
           </span>
         ))}

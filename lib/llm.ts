@@ -105,10 +105,21 @@ export async function streamChat(options: {
         if (!payload || payload === '[DONE]') continue;
         try {
           const json = JSON.parse(payload) as {
-            choices?: Array<{ delta?: { content?: string }; message?: { content?: string } }>;
+            citations?: unknown;
+            search_results?: unknown;
+            choices?: Array<{
+              delta?: { content?: string; citations?: unknown };
+              message?: { content?: string };
+            }>;
           };
           const text = json.choices?.[0]?.delta?.content || json.choices?.[0]?.message?.content || '';
           if (text) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'delta', text })}\n\n`));
+          const urls = citationUrls(json.citations)
+            .concat(citationUrls(json.choices?.[0]?.delta?.citations))
+            .concat(citationUrls(json.search_results));
+          if (urls.length) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'citations', urls })}\n\n`));
+          }
         } catch {
           /* skip malformed chunk */
         }
@@ -118,6 +129,23 @@ export async function streamChat(options: {
       void reader.cancel();
     },
   });
+}
+
+function citationUrls(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const urls: string[] = [];
+  for (const item of value) {
+    if (typeof item === 'string' && item.startsWith('http')) {
+      urls.push(item);
+      continue;
+    }
+    if (item && typeof item === 'object') {
+      const record = item as { url?: unknown; uri?: unknown };
+      const href = typeof record.url === 'string' ? record.url : typeof record.uri === 'string' ? record.uri : '';
+      if (href.startsWith('http')) urls.push(href);
+    }
+  }
+  return urls;
 }
 
 export function sseData(payload: unknown) {
