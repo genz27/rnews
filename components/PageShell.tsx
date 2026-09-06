@@ -49,7 +49,7 @@ export function PageShell({
           <h1 className="shrink-0 px-1 text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             <Link href="/">Rnews</Link>
           </h1>
-          <p className="min-w-0 flex-1 truncate px-1 text-xs text-zinc-400">{title}</p>
+          <div className="min-w-0 flex-1" />
           <Link
             href="/brief"
             className={`shrink-0 px-1.5 text-sm transition ${
