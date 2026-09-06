@@ -107,6 +107,10 @@ export function HomeView({
         router.push('/ask');
         return;
       }
+      if (next === '首页') {
+        router.push('/');
+        return;
+      }
       if (next === selectedRef.current && !queryRef.current) {
         if (next === '推荐') handleRefresh();
         return;
@@ -270,7 +274,7 @@ export function HomeView({
             {cachedAt ? formatUpdatedAt(cachedAt, now) : '聚合资讯'}
           </p>
           <Link
-            href="/brief"
+            href="/"
             className="shrink-0 px-1.5 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
           >
             日报
@@ -348,7 +352,7 @@ export function HomeView({
                   inputRef={desktopSearchRef}
                 />
               </div>
-              <Link href="/brief" className="shrink-0 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200">
+              <Link href="/" className="shrink-0 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200">
                 日报
               </Link>
               <Link href="/ask" className="shrink-0 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200">
