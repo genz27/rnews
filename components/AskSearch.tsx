@@ -46,6 +46,7 @@ export function AskSearch({
   const [streaming, setStreaming] = useState(false);
   const [focus, setFocus] = useState<{ turnId: string; index: number } | null>(null);
   const [openSources, setOpenSources] = useState<Record<string, boolean>>({});
+  const [openTurns, setOpenTurns] = useState<Record<string, boolean>>({});
   const abortRef = useRef<AbortController | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const askedRef = useRef('');
@@ -89,6 +90,7 @@ export function AskSearch({
     askedRef.current = '';
     setFocus(null);
     setOpenSources({});
+    setOpenTurns({});
     router.replace('/ask');
     window.setTimeout(() => boxRef.current?.focus(), 20);
   };
@@ -111,6 +113,7 @@ export function AskSearch({
     setTurns((current) => [...current, { id, query: text, images: nextImages, answer: '' }]);
     setQuery('');
     setImages([]);
+    setOpenTurns({});
     setStreaming(true);
     if (first) router.replace(`/ask?q=${encodeURIComponent(text)}`);
     window.setTimeout(() => {
@@ -364,75 +367,54 @@ export function AskSearch({
           >
             {turns.map((turn, index) => {
               const last = index === turns.length - 1;
+              const prior = !last;
               const parsed = parseAskAnswer(turn.answer, turn.citations);
+              const shown = last || Boolean(openTurns[turn.id]);
               return (
-                <section key={turn.id} className="border-b border-zinc-200/80 py-8 last:border-b-0 dark:border-white/[0.06]">
-                  <h2 className="text-xl font-semibold leading-8 tracking-tight text-zinc-900 dark:text-zinc-50">
-                    {turn.query}
-                  </h2>
-                  {turn.images.length > 0 ? (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {turn.images.map((src, imageIndex) => (
-                        <img key={imageIndex} src={src} alt="" className="size-14 rounded-md object-cover" />
-                      ))}
-                    </div>
-                  ) : null}
-                  {parsed.sources.length > 0 ? (
-                    <div className="mt-4">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setOpenSources((current) => ({ ...current, [turn.id]: !current[turn.id] }))
-                        }
-                        className="mb-2 text-xs tracking-wide text-zinc-400 transition hover:text-zinc-700 dark:hover:text-zinc-200"
-                      >
-                        {parsed.sources.length} 个来源
-                      </button>
-                      <div
-                        className={
-                          openSources[turn.id]
-                            ? 'grid grid-cols-2 gap-2'
-                            : '-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide'
-                        }
-                      >
-                        {parsed.sources.map((source, sourceIndex) => (
-                          <SourceCard
-                            key={source.href}
-                            id={`ask-source-${turn.id}-${sourceIndex}`}
-                            source={source}
-                            index={sourceIndex}
-                            active={focus?.turnId === turn.id && focus.index === sourceIndex}
-                            wide={openSources[turn.id]}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                  {turn.error ? (
-                    <p className="mt-5 text-sm leading-7 text-zinc-500">{turn.error}</p>
-                  ) : parsed.body ? (
-                    <div className="mt-5">
-                      <MarkdownText
-                        text={parsed.body}
-                        sources={parsed.sources}
-                        onCite={(sourceIndex) => {
-                          setOpenSources((current) => ({ ...current, [turn.id]: true }));
-                          setFocus({ turnId: turn.id, index: sourceIndex });
-                          window.requestAnimationFrame(() => {
-                            document
-                              .getElementById(`ask-source-${turn.id}-${sourceIndex}`)
-                              ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                          });
-                        }}
-                      />
-                    </div>
-                  ) : streaming && last ? (
-                    <p className="loading-dots mt-5 text-sm text-zinc-500">
-                      {parsed.sources.length ? '正在整理' : '正在搜索网页'}
-                      <span>.</span>
-                      <span>.</span>
-                      <span>.</span>
-                    </p>
+                <section
+                  key={turn.id}
+                  className={
+                    prior
+                      ? 'border-b border-zinc-200/80 py-1.5 dark:border-white/[0.06]'
+                      : 'py-6'
+                  }
+                >
+                  {prior ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenTurns((current) => ({ ...current, [turn.id]: !current[turn.id] }))
+                      }
+                      className="flex w-full items-center gap-3 py-1 text-left"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-sm text-zinc-400">{turn.query}</span>
+                      {shown ? <span className="shrink-0 text-xs text-zinc-500">收起</span> : null}
+                    </button>
+                  ) : (
+                    <h2 className="text-xl font-semibold leading-8 tracking-tight text-zinc-900 dark:text-zinc-50">
+                      {turn.query}
+                    </h2>
+                  )}
+                  {shown ? (
+                    <TurnResult
+                      turn={turn}
+                      parsed={parsed}
+                      streaming={streaming && last}
+                      sourcesOpen={Boolean(openSources[turn.id])}
+                      focusIndex={focus?.turnId === turn.id ? focus.index : -1}
+                      onToggleSources={() =>
+                        setOpenSources((current) => ({ ...current, [turn.id]: !current[turn.id] }))
+                      }
+                      onCite={(sourceIndex) => {
+                        setOpenSources((current) => ({ ...current, [turn.id]: true }));
+                        setFocus({ turnId: turn.id, index: sourceIndex });
+                        window.requestAnimationFrame(() => {
+                          document
+                            .getElementById(`ask-source-${turn.id}-${sourceIndex}`)
+                            ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                        });
+                      }}
+                    />
                   ) : null}
                 </section>
               );
@@ -461,6 +443,79 @@ export function AskSearch({
         </>
       )}
     </div>
+  );
+}
+
+function TurnResult({
+  turn,
+  parsed,
+  streaming,
+  sourcesOpen,
+  focusIndex,
+  onToggleSources,
+  onCite,
+}: {
+  turn: AskTurn;
+  parsed: ReturnType<typeof parseAskAnswer>;
+  streaming: boolean;
+  sourcesOpen: boolean;
+  focusIndex: number;
+  onToggleSources: () => void;
+  onCite: (index: number) => void;
+}) {
+  return (
+    <>
+      {turn.images.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {turn.images.map((src, imageIndex) => (
+            <img key={imageIndex} src={src} alt="" className="size-14 rounded-md object-cover" />
+          ))}
+        </div>
+      ) : null}
+      {parsed.sources.length > 0 ? (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={onToggleSources}
+            className="mb-2 text-xs tracking-wide text-zinc-400 transition hover:text-zinc-700 dark:hover:text-zinc-200"
+          >
+            {parsed.sources.length} 个来源
+          </button>
+          <div
+            className={
+              sourcesOpen
+                ? 'grid grid-cols-2 gap-2'
+                : '-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide'
+            }
+          >
+            {parsed.sources.map((source, sourceIndex) => (
+              <SourceCard
+                key={source.href}
+                id={`ask-source-${turn.id}-${sourceIndex}`}
+                source={source}
+                index={sourceIndex}
+                active={focusIndex === sourceIndex}
+                wide={sourcesOpen}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {turn.error ? (
+        <p className="mt-5 text-sm leading-7 text-zinc-500">{turn.error}</p>
+      ) : parsed.body ? (
+        <div className="mt-5">
+          <MarkdownText text={parsed.body} sources={parsed.sources} onCite={onCite} />
+        </div>
+      ) : streaming ? (
+        <p className="loading-dots mt-5 text-sm text-zinc-500">
+          {parsed.sources.length ? '正在整理' : '正在搜索网页'}
+          <span>.</span>
+          <span>.</span>
+          <span>.</span>
+        </p>
+      ) : null}
+    </>
   );
 }
 
