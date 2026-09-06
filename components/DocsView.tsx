@@ -84,7 +84,7 @@ Content-Type: application/json
 
         <h2 className="mt-10 text-base font-medium text-zinc-900 dark:text-zinc-50">今日日报</h2>
         <p className="mt-2">
-          首页展示半日摘要。生成后缓存 12 小时，打开页面不会重跑模型。<code>refresh=1</code> 才重新生成。每个 IP 每分钟 30 次。
+          首页先看半日摘要，下面接今日推荐。生成后缓存 12 小时，打开页面不会重跑模型。<code>refresh=1</code> 才重新生成。每个 IP 每分钟 30 次。
         </p>
         <Code>{`GET /api/brief`}</Code>
         <Code>{`GET /api/brief?refresh=1`}</Code>

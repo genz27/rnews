@@ -215,7 +215,7 @@ export function AskSearch({
     <form
       className={
         layout === 'page'
-          ? 'border-t border-zinc-200/80 pt-3 dark:border-white/[0.08]'
+          ? 'border-t border-zinc-200/80 pt-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] dark:border-white/[0.08]'
           : 'border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200'
       }
       onSubmit={(event) => {

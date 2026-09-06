@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 const TABS = [
   { id: '首页', label: '首页', href: '/' },
   { id: '推荐', label: '推荐', href: '/?c=推荐' },
-  { id: '搜索', label: '搜索', href: '/ask' },
+  { id: 'AI', label: 'AI', href: '/ask' },
   { id: '社区', label: '社区', href: '/?c=社区' },
   { id: '资讯', label: '资讯', href: '/?c=资讯' },
 ] as const;
@@ -20,16 +20,16 @@ export function BottomNav({
   const router = useRouter();
   const active = TABS.some((tab) => tab.id === selected)
     ? selected
-    : selected === '全部' || selected === '工程' || selected === '主机' || selected === 'AI'
-      ? selected
+    : selected === '搜索'
+      ? 'AI'
       : '首页';
 
   const go = (id: string, href: string) => {
-    if (id === '搜索') {
+    if (id === 'AI') {
       router.push('/ask');
       return;
     }
-    if (onSelect) {
+    if (onSelect && id !== 'AI') {
       onSelect(id);
       return;
     }
@@ -73,10 +73,11 @@ function TabIcon({ name, active }: { name: string; active: boolean }) {
         <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z" strokeLinejoin="round" />
       ) : name === '推荐' ? (
         <path d="M5 7h14M5 12h8M5 17h11" strokeLinecap="round" />
-      ) : name === '搜索' ? (
+      ) : name === 'AI' ? (
         <>
-          <circle cx="11" cy="11" r="6.5" />
-          <path d="m16 16 4 4" strokeLinecap="round" />
+          <rect x="6" y="7" width="12" height="11" rx="2.5" />
+          <path d="M9 11h.01M15 11h.01M9.5 15h5" strokeLinecap="round" />
+          <path d="M12 4v3" strokeLinecap="round" />
         </>
       ) : name === '社区' ? (
         <>
@@ -84,16 +85,10 @@ function TabIcon({ name, active }: { name: string; active: boolean }) {
           <circle cx="16" cy="9" r="2.2" />
           <path d="M4.5 18c.6-2.4 2.4-3.6 4.5-3.6s3.9 1.2 4.5 3.6M12.8 18c.4-1.6 1.5-2.6 3.2-2.6 1.8 0 2.9 1 3.3 2.6" strokeLinecap="round" />
         </>
-      ) : name === '资讯' ? (
+      ) : (
         <>
           <rect x="5" y="5" width="14" height="14" rx="2" />
           <path d="M8 9h8M8 12h8M8 15h5" strokeLinecap="round" />
-        </>
-      ) : (
-        <>
-          <rect x="6" y="7" width="12" height="11" rx="2.5" />
-          <path d="M9 11h.01M15 11h.01M9.5 15h5" strokeLinecap="round" />
-          <path d="M12 4v3" strokeLinecap="round" />
         </>
       )}
     </svg>
