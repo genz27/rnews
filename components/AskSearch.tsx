@@ -4,7 +4,7 @@ import { FeedRow } from '@/components/FeedCard';
 import { MarkdownText } from '@/components/MarkdownText';
 import { FeedItem } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 
 type Turn = {
   id: string;
@@ -15,7 +15,7 @@ type Turn = {
   error?: string;
 };
 
-const EXAMPLES = ['今天有什么重要新闻', '解释 HTTP 流式传输', '对比 iPhone 和 Android'];
+const EXAMPLES = ['今天有什么重要新闻', 'AI 有什么新进展', '社区在聊什么'];
 
 function readImage(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -29,9 +29,15 @@ function readImage(file: File) {
 export function AskSearch({
   initialQuery = '',
   autoAsk = false,
+  onSource,
+  onCategory,
+  inputRef,
 }: {
   initialQuery?: string;
   autoAsk?: boolean;
+  onSource?: (source: string) => void;
+  onCategory?: (category: string) => void;
+  inputRef?: RefObject<HTMLTextAreaElement | null>;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
@@ -40,13 +46,15 @@ export function AskSearch({
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const startedRef = useRef(false);
+  const askedRef = useRef('');
 
   const goSource = (source: string) => {
-    router.push(`/?q=${encodeURIComponent(source)}`);
+    if (onSource) onSource(source);
+    else router.push(`/?q=${encodeURIComponent(source)}`);
   };
   const goCategory = (category: string) => {
-    router.push(category === '推荐' ? '/' : `/?c=${encodeURIComponent(category)}`);
+    if (onCategory) onCategory(category);
+    else router.push(category === '推荐' ? '/' : `/?c=${encodeURIComponent(category)}`);
   };
 
   const ask = async (nextQuery = query, nextImages = images) => {
@@ -137,12 +145,12 @@ export function AskSearch({
   };
 
   useEffect(() => {
-    if (!autoAsk || startedRef.current) return;
+    if (!autoAsk) return;
     const text = initialQuery.trim();
-    if (!text) return;
-    startedRef.current = true;
+    if (!text || askedRef.current === text) return;
+    askedRef.current = text;
     void ask(text, []);
-    // Ask once when opened from /search?q=
+    // Ask when the homepage passes ?ask= or 问资讯
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoAsk, initialQuery]);
 
@@ -154,7 +162,7 @@ export function AskSearch({
   };
 
   return (
-    <div>
+    <div id="ask">
       <form
         className="border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200"
         onSubmit={(event) => {
@@ -179,6 +187,7 @@ export function AskSearch({
         ) : null}
         <div className="flex items-end gap-4">
           <textarea
+            ref={inputRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
@@ -188,7 +197,7 @@ export function AskSearch({
               }
             }}
             rows={2}
-            placeholder="问资讯、概念，或今天发生了什么"
+            placeholder="问今日资讯"
             className="min-h-12 w-full resize-none bg-transparent text-sm leading-6 text-zinc-800 outline-none placeholder:text-zinc-400 dark:text-zinc-200 dark:placeholder:text-zinc-600"
           />
           <input

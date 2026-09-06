@@ -2,27 +2,20 @@
 
 import { MarkdownText } from '@/components/MarkdownText';
 import { formatUpdatedAt } from '@/lib/time';
-import Link from 'next/link';
+import { DailyBrief } from '@/lib/types';
 import { useEffect, useState } from 'react';
 
-type Brief = {
-  date: string;
-  generatedAt: number;
-  markdown: string;
-  itemCount: number;
-};
-
-export function BriefPanel() {
-  const [brief, setBrief] = useState<Brief | null>(null);
+export function BriefPanel({ initialBrief = null }: { initialBrief?: DailyBrief | null }) {
+  const [brief, setBrief] = useState<DailyBrief | null>(initialBrief);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(true);
+  const [busy, setBusy] = useState(!initialBrief);
 
   const load = async (refresh = false) => {
     setBusy(true);
     setError(null);
     try {
       const response = await fetch(refresh ? '/api/brief?refresh=1' : '/api/brief', { cache: 'no-store' });
-      const data = (await response.json()) as Brief & { error?: string };
+      const data = (await response.json()) as DailyBrief & { error?: string };
       if (!response.ok) throw new Error(data.error || '加载失败');
       setBrief(data);
     } catch (caught) {
@@ -33,11 +26,12 @@ export function BriefPanel() {
   };
 
   useEffect(() => {
+    if (initialBrief) return;
     void load(false);
-  }, []);
+  }, [initialBrief]);
 
   return (
-    <section className="mb-10">
+    <section id="brief" className="mb-10">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="text-base font-medium tracking-tight text-zinc-900 dark:text-zinc-50">今日日报</h2>
         <p className="text-sm text-zinc-500">
@@ -56,10 +50,6 @@ export function BriefPanel() {
           >
             重新生成
           </button>
-          <span className="text-zinc-300 dark:text-zinc-700"> · </span>
-          <Link href="/brief" className="text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200">
-            完整日报
-          </Link>
         </p>
       </div>
       {error ? <p className="mt-4 text-sm text-zinc-500">{error}</p> : null}

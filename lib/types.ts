@@ -49,3 +49,12 @@ export interface FeedSource {
   title: string;
   category: string;
 }
+
+export interface DailyBrief {
+  date: string;
+  generatedAt: number;
+  mode: 'llm' | 'extract';
+  markdown: string;
+  itemCount: number;
+  items?: FeedItem[];
+}

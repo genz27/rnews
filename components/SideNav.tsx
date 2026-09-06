@@ -48,10 +48,10 @@ export function SideNav({
       )}
       <div className="mt-8 border-t border-zinc-200/80 pt-4 dark:border-white/[0.06]">
         <p className="mb-2 px-3 text-xs tracking-wide text-zinc-400">更多</p>
-        <NavLink href="/search" active={searchActive}>
-          搜索
+        <NavLink href="/#ask" active={searchActive}>
+          问资讯
         </NavLink>
-        <NavLink href="/brief" active={briefActive}>
+        <NavLink href="/#brief" active={briefActive}>
           日报
         </NavLink>
         <NavLink href="/docs" active={docsActive}>

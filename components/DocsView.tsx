@@ -50,7 +50,9 @@ export function DocsView() {
         <p className="mt-2">响应类型为 <code>application/rss+xml</code>，条目带一句 <code>description</code> 摘要，可直接丢进 RSS 阅读器。</p>
 
         <h2 className="mt-10 text-base font-medium text-zinc-900 dark:text-zinc-50">搜索与日报</h2>
-        <p className="mt-2">站点内的搜索和日报只走服务端 Chat Completions，浏览器不会直接打模型接口。回答会带上检索到的聚合条目。</p>
+        <p className="mt-2">
+          首页推荐流里就是今日日报、问资讯和标题搜索。浏览器只请求本站接口，不会直接打模型。回答会带上检索到的聚合条目。
+        </p>
         <Code>{`POST /api/search
 { "query": "今天有什么重要新闻", "images": [], "history": [] }`}</Code>
         <p className="mt-2">

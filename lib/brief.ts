@@ -5,16 +5,9 @@ import { formatNewsContext } from './news-search';
 import { fetchAllFeeds, filterItems } from './rss';
 import { shanghaiDay } from './time';
 import { applyTranslation } from './translate';
-import { FeedItem } from './types';
+import { DailyBrief, FeedItem } from './types';
 
-export type DailyBrief = {
-  date: string;
-  generatedAt: number;
-  mode: 'llm' | 'extract';
-  markdown: string;
-  itemCount: number;
-  items?: FeedItem[];
-};
+export type { DailyBrief };
 
 async function todayPool(limit = 40): Promise<FeedItem[]> {
   const snapshot = await fetchAllFeeds();
@@ -88,6 +81,12 @@ async function readBrief(date: string): Promise<DailyBrief | null> {
     /* miss */
   }
   return null;
+}
+
+export async function readCachedBrief(): Promise<DailyBrief | null> {
+  const cached = await readBrief(shanghaiDay());
+  if (!cached) return null;
+  return withItems(cached);
 }
 
 export async function getDailyBrief(options?: { refresh?: boolean }): Promise<DailyBrief> {
