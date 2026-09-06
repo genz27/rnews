@@ -10,7 +10,7 @@ export type ParsedAskAnswer = {
   followups: string[];
 };
 
-const GENERIC_SLUG = /^(index|home|news|latest|story|article|post|item|id|wiki|portal|current|events)$/i;
+const GENERIC_SLUG = /^(index|home|news|latest|story|article|post|item|id|wiki|portal|current|events|watch|v|video)$/i;
 const NOISY_HOST = /(news\.google\.com|news\.yahoo\.com|google\.com\/search)$/i;
 
 function usableLabel(text: string, host: string) {
@@ -31,7 +31,9 @@ function slugTitle(href: string, host: string) {
     const parts = url.pathname.split('/').filter(Boolean);
     const last = decodeURIComponent(parts[parts.length - 1] || '').replace(/\.(html?|php|aspx)$/i, '');
     const pretty = last.replace(/[-_]+/g, ' ').trim();
-    if (!pretty || GENERIC_SLUG.test(pretty) || /^\d+$/.test(pretty)) return '';
+    if (!pretty || GENERIC_SLUG.test(pretty) || /^\d+$/.test(pretty) || /^\d{4}([-\s.]\d{2}){1,2}$/.test(pretty)) {
+      return '';
+    }
     return usableLabel(pretty, host);
   } catch {
     return '';
