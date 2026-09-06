@@ -30,7 +30,12 @@ function briefPath(date: string) {
 }
 
 function isFresh(brief: DailyBrief, date: string) {
-  return brief.date === date && Date.now() - brief.generatedAt < BRIEF_TTL_MS;
+  return (
+    brief.date === date &&
+    Date.now() - brief.generatedAt < BRIEF_TTL_MS &&
+    countPicks(brief.markdown) > 0 &&
+    countPicks(brief.markdown) <= 14
+  );
 }
 
 function shortSource(source: string) {
@@ -47,7 +52,7 @@ function isCommitNoise(item: FeedItem) {
   return /^(fix|feat|chore|perf|test|docs|refactor)\s*[\(:]/i.test(item.title);
 }
 
-function clipFact(text: string, max = 96) {
+function clipFact(text: string, max = 36) {
   const compact = text.replace(/\s+/g, ' ').trim();
   if (compact.length <= max) return compact;
   const slice = compact.slice(0, max);
@@ -86,10 +91,7 @@ function isAiItem(item: FeedItem) {
 
 function oneLine(item: FeedItem) {
   const title = (item.titleZh || item.title).replace(/\s+/g, ' ').trim();
-  const snippet = (item.snippet || '').replace(/\s+/g, ' ').trim();
-  const fact =
-    snippet && !title.includes(snippet.slice(0, 18)) ? `${title}。${snippet}` : title;
-  return `・${shortSource(item.source)} ${clipFact(fact)} ${item.link}`;
+  return `・[${shortSource(item.source)} ${clipFact(title)}](${item.link})`;
 }
 
 function feedFooter(checked: number, ok: number, selected: number) {
@@ -131,8 +133,8 @@ export function extractBrief(date: string, items: FeedItem[], checked: number, o
     (isAiItem(item) ? ai : other).push(item);
   }
 
-  const aiLines = ai.slice(0, 18).map(oneLine);
-  const otherLines = other.slice(0, 16).map(oneLine);
+  const aiLines = ai.slice(0, 6).map(oneLine);
+  const otherLines = other.slice(0, 5).map(oneLine);
   const selected = aiLines.length + otherLines.length;
   const lines = ['AI 焦点', ...aiLines, '其他资讯', ...otherLines, feedFooter(checked, ok, selected)];
 
@@ -147,7 +149,7 @@ export function extractBrief(date: string, items: FeedItem[], checked: number, o
   };
 }
 
-async function todayPool(limit = 40): Promise<BriefPool> {
+async function todayPool(limit = 22): Promise<BriefPool> {
   const snapshot = await fetchAllFeeds();
   const today = filterItems(snapshot.items, '推荐').map((item) => applyTranslation(item));
   const source = today.length >= 8 ? today : snapshot.items.map((item) => applyTranslation(item));
@@ -190,7 +192,7 @@ export async function readCachedBrief(): Promise<DailyBrief | null> {
 
 async function generateDailyBrief(): Promise<DailyBrief> {
   const date = shanghaiDay();
-  const pool = await todayPool(36);
+  const pool = await todayPool(22);
   const fallback = extractBrief(date, pool.items, pool.checked, pool.ok);
   if (pool.items.length === 0) {
     await writeBrief(fallback);
@@ -198,39 +200,33 @@ async function generateDailyBrief(): Promise<DailyBrief> {
   }
 
   try {
-    const sample = pool.items.slice(0, 28);
+    const sample = pool.items.slice(0, 20);
     const markdown = await completeChat({
-      maxTokens: 1400,
-      timeoutMs: 48000,
+      maxTokens: 700,
+      timeoutMs: 40000,
       messages: [
         {
           role: 'system',
           content:
-            '你是半日新闻摘要编辑。只能使用用户给出的 RSS 条目，禁止编造未出现的新闻、链接或来源。不要自我介绍，不要加标题、不要写今日观察、不要用 markdown 标题。',
+            '你是半日新闻摘要编辑。只根据给出的 RSS 条目做压缩总结，合并重复新闻，禁止编造。不要自我介绍，不要加标题或今日观察。',
         },
         {
           role: 'user',
           content: `日期：${date}
-请写成半日新闻摘要，格式必须严格如下：
+写成很短的半日摘要，必须刚好铺满一屏，不要写长。格式严格如下：
 
 AI 焦点
-・来源名 一句话事实。原文链接
-・来源名 一句话事实。原文链接
-
+・[来源名 一句结论](原文链接)
 其他资讯
-・来源名 一句话事实。原文链接
-
+・[来源名 一句结论](原文链接)
 来源：${pool.checked} feeds 检查 / ${pool.ok} feeds 成功 / {n} 条精选
 
 规则：
-- 每条一行，以「・」开头
-- 来源名用条目的 source，可略去「首页/最新」等后缀
-- 一句话尽量短，写关键事实，不要空话
-- 必须使用条目里的真实链接，不要改写 URL
-- AI 焦点：模型、智能体、大厂 AI、开源 agent 相关，约 12-18 条
-- 其他资讯：安全、硬件、产品、商业等，约 10-16 条
-- 总共不超过 32 条，不要重复
-- 最后一行 {n} 改成实际精选条数
+- AI 焦点正好 6 条，其他资讯正好 5 条，总共 11 条
+- 每条不超过 22 个汉字，只写结论，不要复述标题全文
+- 同类新闻只留一条
+- 必须用条目里的真实链接
+- {n} 写成 11
 
 条目：
 ${sample

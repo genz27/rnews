@@ -9,7 +9,7 @@ function trimUrl(url: string) {
   return url.replace(/[)，。,.!！?？;；]+$/g, '');
 }
 
-function renderInline(text: string) {
+function renderInline(text: string, compact = false) {
   const parts = text.split(/(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*|https?:\/\/[^\s<>"']+)/g);
   return parts.map((part, index) => {
     const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
@@ -37,9 +37,9 @@ function renderInline(text: string) {
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="break-all underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 dark:decoration-white/20 dark:hover:text-zinc-100"
+            className={`${compact ? '' : 'break-all '}underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 dark:decoration-white/20 dark:hover:text-zinc-100`}
           >
-            {href}
+            {compact ? '原文' : href}
           </a>
           {trailing}
         </span>
@@ -63,7 +63,7 @@ function headingText(line: string) {
   return line.trim().replace(/^#{1,3}\s+/, '');
 }
 
-export function MarkdownText({ text }: { text: string }) {
+export function MarkdownText({ text, compact = false }: { text: string; compact?: boolean }) {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const blocks: ReactNode[] = [];
   let index = 0;
@@ -77,8 +77,8 @@ export function MarkdownText({ text }: { text: string }) {
     if (kind === 'heading' || kind === 'md-h') {
       const key = `h-${index}`;
       blocks.push(
-        <h3 key={key} className="pt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-          {renderInline(headingText(lines[index]))}
+        <h3 key={key} className={`font-medium text-zinc-900 dark:text-zinc-100 ${compact ? 'pt-0.5 text-[13px]' : 'pt-1 text-sm'}`}>
+          {renderInline(headingText(lines[index]), compact)}
         </h3>
       );
       index += 1;
@@ -87,7 +87,7 @@ export function MarkdownText({ text }: { text: string }) {
     if (kind === 'footer') {
       blocks.push(
         <p key={`f-${index}`} className="pt-2 text-xs text-zinc-400 dark:text-zinc-500">
-          {renderInline(lines[index].trim())}
+          {renderInline(lines[index].trim(), compact)}
         </p>
       );
       index += 1;
@@ -101,11 +101,11 @@ export function MarkdownText({ text }: { text: string }) {
         index += 1;
       }
       blocks.push(
-        <ul key={`l-${start}`} className="list-none space-y-2 pl-0">
+        <ul key={`l-${start}`} className={`list-none pl-0 ${compact ? 'space-y-1' : 'space-y-2'}`}>
           {items.map((item, itemIndex) => (
             <li key={itemIndex} className="flex gap-2">
               <span className="shrink-0 text-zinc-400">・</span>
-              <span className="min-w-0">{renderInline(item)}</span>
+              <span className="min-w-0">{renderInline(item, compact)}</span>
             </li>
           ))}
         </ul>
@@ -123,7 +123,7 @@ export function MarkdownText({ text }: { text: string }) {
       <p key={`p-${start}`}>
         {chunk.map((line, lineIndex) => (
           <span key={lineIndex}>
-            {renderInline(line)}
+            {renderInline(line, compact)}
             {lineIndex < chunk.length - 1 ? <br /> : null}
           </span>
         ))}
@@ -131,5 +131,15 @@ export function MarkdownText({ text }: { text: string }) {
     );
   }
 
-  return <div className="space-y-3 text-[15px] leading-7 text-zinc-600 dark:text-zinc-400">{blocks}</div>;
+  return (
+    <div
+      className={
+        compact
+          ? 'flex h-full flex-col justify-between space-y-2 overflow-hidden text-[13px] leading-6 text-zinc-600 lg:text-[15px] lg:leading-7 dark:text-zinc-400'
+          : 'space-y-3 text-[15px] leading-7 text-zinc-600 dark:text-zinc-400'
+      }
+    >
+      {blocks}
+    </div>
+  );
 }

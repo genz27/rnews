@@ -3,7 +3,7 @@
 import { MarkdownText } from '@/components/MarkdownText';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 
-type Turn = {
+export type AskTurn = {
   id: string;
   query: string;
   images: string[];
@@ -12,6 +12,7 @@ type Turn = {
 };
 
 const EXAMPLES = ['今天有什么重要新闻', 'AI 有什么新进展', '社区在聊什么'];
+const STORAGE_KEY = 'rnews-ask-thread';
 
 function readImage(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -22,22 +23,73 @@ function readImage(file: File) {
   });
 }
 
+function loadTurns(): AskTurn[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as AskTurn[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((turn) => turn && typeof turn.query === 'string')
+      .slice(-24)
+      .map((turn) => ({
+        id: String(turn.id || `${Date.now()}`),
+        query: turn.query,
+        images: [],
+        answer: typeof turn.answer === 'string' ? turn.answer : '',
+        error: typeof turn.error === 'string' ? turn.error : undefined,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function saveTurns(turns: AskTurn[]) {
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(turns.slice(-24).map((turn) => ({ ...turn, images: [] })))
+    );
+  } catch {
+    /* quota */
+  }
+}
+
 export function AskSearch({
   initialQuery = '',
   autoAsk = false,
+  persist = false,
+  layout = 'embed',
   inputRef,
+  onClearRef,
 }: {
   initialQuery?: string;
   autoAsk?: boolean;
+  persist?: boolean;
+  layout?: 'embed' | 'page';
   inputRef?: RefObject<HTMLTextAreaElement | null>;
+  onClearRef?: RefObject<(() => void) | null>;
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [images, setImages] = useState<string[]>([]);
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [turns, setTurns] = useState<AskTurn[]>([]);
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const askedRef = useRef('');
+  const listRef = useRef<HTMLDivElement>(null);
+  const localInputRef = useRef<HTMLTextAreaElement>(null);
+  const boxRef = inputRef || localInputRef;
+  const [ready, setReady] = useState(!persist);
+
+  const clearThread = () => {
+    abortRef.current?.abort();
+    setTurns([]);
+    setQuery('');
+    setImages([]);
+    askedRef.current = '';
+    if (persist) localStorage.removeItem(STORAGE_KEY);
+  };
 
   const ask = async (nextQuery = query, nextImages = images) => {
     const text = nextQuery.trim();
@@ -48,7 +100,7 @@ export function AskSearch({
     const id = `${Date.now()}`;
     const history = turns
       .filter((turn) => turn.answer && !turn.error)
-      .slice(-6)
+      .slice(-8)
       .flatMap((turn) => [
         { role: 'user', content: turn.query },
         { role: 'assistant', content: turn.answer },
@@ -122,14 +174,35 @@ export function AskSearch({
   };
 
   useEffect(() => {
-    if (!autoAsk) return;
+    if (onClearRef) onClearRef.current = clearThread;
+  });
+
+  useEffect(() => {
+    if (!persist) return;
+    setTurns(loadTurns());
+    setReady(true);
+  }, [persist]);
+
+  useEffect(() => {
+    if (!persist || !ready || streaming) return;
+    saveTurns(turns);
+  }, [persist, ready, streaming, turns]);
+
+  useEffect(() => {
+    if (!ready || !autoAsk) return;
     const text = initialQuery.trim();
     if (!text || askedRef.current === text) return;
     askedRef.current = text;
     void ask(text, []);
-    // Ask when the homepage passes ?ask=
+    // Ask when /ask?q= is passed
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoAsk, initialQuery]);
+  }, [autoAsk, initialQuery, ready]);
+
+  useEffect(() => {
+    const node = listRef.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+  }, [turns, streaming]);
 
   const addImages = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -138,86 +211,92 @@ export function AskSearch({
     setImages((current) => [...current, ...urls].slice(0, 6));
   };
 
-  return (
-    <div id="ask">
-      <h2 className="mb-3 text-base font-medium tracking-tight text-zinc-900 dark:text-zinc-50">AI 搜索</h2>
-      <form
-        className="border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void ask();
-        }}
-      >
-        {images.length > 0 ? (
-          <div className="mb-3 flex flex-wrap gap-2">
-            {images.map((src, index) => (
-              <button
-                key={`${index}-${src.slice(0, 24)}`}
-                type="button"
-                onClick={() => setImages((current) => current.filter((_, currentIndex) => currentIndex !== index))}
-                className="overflow-hidden rounded-md border border-zinc-200/80 dark:border-white/[0.08]"
-                title="移除图片"
-              >
-                <img src={src} alt="" className="size-16 object-cover" />
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <div className="flex items-end gap-4">
-          <textarea
-            ref={inputRef}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                void ask();
-              }
-            }}
-            rows={2}
-            placeholder="用 AI 搜索今日资讯"
-            className="min-h-12 w-full resize-none bg-transparent text-sm leading-6 text-zinc-800 outline-none placeholder:text-zinc-400 dark:text-zinc-200 dark:placeholder:text-zinc-600"
-          />
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={(event) => {
-              void addImages(event.target.files);
-              event.target.value = '';
-            }}
-          />
+  const composer = (
+    <form
+      className={
+        layout === 'page'
+          ? 'border-t border-zinc-200/80 pt-3 dark:border-white/[0.08]'
+          : 'border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200'
+      }
+      onSubmit={(event) => {
+        event.preventDefault();
+        void ask();
+      }}
+    >
+      {images.length > 0 ? (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {images.map((src, index) => (
+            <button
+              key={`${index}-${src.slice(0, 24)}`}
+              type="button"
+              onClick={() => setImages((current) => current.filter((_, currentIndex) => currentIndex !== index))}
+              className="overflow-hidden rounded-md border border-zinc-200/80 dark:border-white/[0.08]"
+              title="移除图片"
+            >
+              <img src={src} alt="" className="size-16 object-cover" />
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div className="flex items-end gap-4">
+        <textarea
+          ref={boxRef}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              void ask();
+            }
+          }}
+          rows={2}
+          placeholder="继续追问，或换一个话题"
+          className="min-h-12 w-full resize-none bg-transparent text-sm leading-6 text-zinc-800 outline-none placeholder:text-zinc-400 dark:text-zinc-200 dark:placeholder:text-zinc-600"
+        />
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          onChange={(event) => {
+            void addImages(event.target.files);
+            event.target.value = '';
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="shrink-0 pb-1 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+        >
+          图片
+        </button>
+        {streaming ? (
           <button
             type="button"
-            onClick={() => fileRef.current?.click()}
+            onClick={() => abortRef.current?.abort()}
             className="shrink-0 pb-1 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
           >
-            图片
+            停止
           </button>
-          {streaming ? (
-            <button
-              type="button"
-              onClick={() => abortRef.current?.abort()}
-              className="shrink-0 pb-1 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
-            >
-              停止
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={!query.trim()}
-              className="shrink-0 pb-1 text-sm text-zinc-500 transition hover:text-zinc-800 disabled:opacity-40 dark:hover:text-zinc-200"
-            >
-              发送
-            </button>
-          )}
-        </div>
-      </form>
+        ) : (
+          <button
+            type="submit"
+            disabled={!query.trim()}
+            className="shrink-0 pb-1 text-sm text-zinc-500 transition hover:text-zinc-800 disabled:opacity-40 dark:hover:text-zinc-200"
+          >
+            发送
+          </button>
+        )}
+      </div>
+    </form>
+  );
 
-      {turns.length === 0 ? (
-        <div className="mt-4 flex flex-wrap gap-2">
+  const thread =
+    turns.length === 0 ? (
+      <div className={layout === 'page' ? 'flex flex-1 flex-col justify-center' : 'mt-4'}>
+        <p className="mb-3 text-sm text-zinc-500">用 AI 搜索资讯，对话会留在这页。</p>
+        <div className="flex flex-wrap gap-2">
           {EXAMPLES.map((example) => (
             <button
               key={example}
@@ -229,33 +308,49 @@ export function AskSearch({
             </button>
           ))}
         </div>
-      ) : (
-        <div className="mt-2">
-          {turns.map((turn, index) => (
-            <section key={turn.id} className="border-b border-zinc-200/80 py-8 last:border-b-0 dark:border-white/[0.06]">
-              <h2 className="text-base font-medium leading-7 tracking-tight text-zinc-900 lg:text-[17px] lg:leading-8 dark:text-zinc-50">
-                {turn.query}
-              </h2>
-              {turn.images.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {turn.images.map((src, imageIndex) => (
-                    <img key={imageIndex} src={src} alt="" className="size-16 rounded-md object-cover" />
-                  ))}
-                </div>
-              ) : null}
-              {turn.error ? (
-                <p className="mt-5 text-sm leading-7 text-zinc-500">{turn.error}</p>
-              ) : turn.answer ? (
-                <div className="mt-5">
-                  <MarkdownText text={turn.answer} />
-                </div>
-              ) : streaming && index === turns.length - 1 ? (
-                <p className="mt-5 text-sm text-zinc-500">正在搜索…</p>
-              ) : null}
-            </section>
-          ))}
-        </div>
-      )}
+      </div>
+    ) : (
+      <div ref={listRef} className={layout === 'page' ? 'min-h-0 flex-1 overflow-y-auto' : 'mt-2'}>
+        {turns.map((turn, index) => (
+          <section key={turn.id} className="border-b border-zinc-200/80 py-6 last:border-b-0 dark:border-white/[0.06]">
+            <h2 className="text-base font-medium leading-7 tracking-tight text-zinc-900 lg:text-[17px] lg:leading-8 dark:text-zinc-50">
+              {turn.query}
+            </h2>
+            {turn.images.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {turn.images.map((src, imageIndex) => (
+                  <img key={imageIndex} src={src} alt="" className="size-16 rounded-md object-cover" />
+                ))}
+              </div>
+            ) : null}
+            {turn.error ? (
+              <p className="mt-4 text-sm leading-7 text-zinc-500">{turn.error}</p>
+            ) : turn.answer ? (
+              <div className="mt-4">
+                <MarkdownText text={turn.answer} />
+              </div>
+            ) : streaming && index === turns.length - 1 ? (
+              <p className="mt-4 text-sm text-zinc-500">正在搜索…</p>
+            ) : null}
+          </section>
+        ))}
+      </div>
+    );
+
+  if (layout === 'page') {
+    return (
+      <div id="ask" className="flex min-h-0 flex-1 flex-col">
+        {thread}
+        <div className="shrink-0 pt-2">{composer}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div id="ask">
+      <h2 className="mb-3 text-base font-medium tracking-tight text-zinc-900 dark:text-zinc-50">AI 搜索</h2>
+      {composer}
+      {thread}
     </div>
   );
 }

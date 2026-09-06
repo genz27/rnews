@@ -5,7 +5,15 @@ import { formatUpdatedAt } from '@/lib/time';
 import { DailyBrief } from '@/lib/types';
 import { useEffect, useState } from 'react';
 
-export function BriefPanel({ initialBrief = null }: { initialBrief?: DailyBrief | null }) {
+export function BriefPanel({
+  initialBrief = null,
+  fill = false,
+  reloadToken = 0,
+}: {
+  initialBrief?: DailyBrief | null;
+  fill?: boolean;
+  reloadToken?: number;
+}) {
   const [brief, setBrief] = useState<DailyBrief | null>(initialBrief);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(!initialBrief);
@@ -28,18 +36,18 @@ export function BriefPanel({ initialBrief = null }: { initialBrief?: DailyBrief 
   };
 
   useEffect(() => {
-    if (initialBrief) return;
+    if (initialBrief && reloadToken === 0) return;
     void load(false);
-  }, [initialBrief]);
+  }, [initialBrief, reloadToken]);
 
   return (
-    <section id="brief">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
+    <section id="brief" className={fill ? 'flex min-h-0 flex-1 flex-col overflow-hidden' : undefined}>
+      <div className="flex shrink-0 flex-wrap items-baseline justify-between gap-3">
         <h2 className="text-base font-medium tracking-tight text-zinc-900 dark:text-zinc-50">今日日报</h2>
         <p className="text-sm text-zinc-500">
           {brief ? (
             <>
-              {brief.date} · {brief.mode === 'llm' ? 'AI 摘要' : '摘录'} · {brief.itemCount} 条
+              {brief.date} · {brief.mode === 'llm' ? 'AI 摘要' : '摘录'}
               {brief.generatedAt ? ` · ${formatUpdatedAt(brief.generatedAt)}` : ''}
             </>
           ) : (
@@ -55,10 +63,10 @@ export function BriefPanel({ initialBrief = null }: { initialBrief?: DailyBrief 
           </button>
         </p>
       </div>
-      {error ? <p className="mt-4 text-sm text-zinc-500">{error}</p> : null}
+      {error ? <p className="mt-3 shrink-0 text-sm text-zinc-500">{error}</p> : null}
       {brief ? (
-        <div className="mt-4">
-          <MarkdownText text={brief.markdown} />
+        <div className={fill ? 'mt-3 min-h-0 flex-1 overflow-hidden' : 'mt-4'}>
+          <MarkdownText text={brief.markdown} compact={fill} />
         </div>
       ) : null}
     </section>

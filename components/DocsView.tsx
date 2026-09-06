@@ -49,19 +49,55 @@ export function DocsView() {
         <Code>{`https://news.airgzn.top/api/v1/rss?category=全部`}</Code>
         <p className="mt-2">响应类型为 <code>application/rss+xml</code>，条目带一句 <code>description</code> 摘要，可直接丢进 RSS 阅读器。</p>
 
-        <h2 className="mt-10 text-base font-medium text-zinc-900 dark:text-zinc-50">搜索与日报</h2>
+        <h2 className="mt-10 text-base font-medium text-zinc-900 dark:text-zinc-50">AI 搜索</h2>
         <p className="mt-2">
-          首页是 AI 搜索和今日日报（<code>/api/brief</code> 生成后缓存）。推荐及其他分类仍是原来的资讯列表。浏览器不会直接打模型。
+          页面在 <Link href="/ask" className="text-zinc-800 underline decoration-zinc-300 underline-offset-2 dark:text-zinc-200">/ask</Link>
+          。接口把问题和对话历史交给模型自带搜索，浏览器不会带密钥。每个 IP 每分钟 20 次。
         </p>
         <Code>{`POST /api/search
-{ "query": "今天有什么重要新闻", "images": [], "history": [] }`}</Code>
+Content-Type: application/json
+
+{
+  "query": "今天有什么重要新闻",
+  "images": [],
+  "history": [
+    { "role": "user", "content": "上一轮问题" },
+    { "role": "assistant", "content": "上一轮回答" }
+  ]
+}`}</Code>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li><code>query</code> 必填，最长 4000 字</li>
+          <li><code>history</code> 可选，最近 8 轮，用于持续对话</li>
+          <li><code>images</code> 可选，最多 6 张 <code>data:image/...</code></li>
+        </ul>
         <p className="mt-2">
-          响应为 SSE：先推 <code>data: {"{"}&quot;type&quot;:&quot;related&quot;,&quot;items&quot;:[...]{"}"}</code>，再推{' '}
-          <code>data: {"{"}&quot;type&quot;:&quot;delta&quot;,&quot;text&quot;:&quot;...&quot;{"}"}</code>
-          。最多 6 张图片。
+          响应为 <code>text/event-stream</code>。每条 <code>data:</code> 后是 JSON：
+        </p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li><code>{`{"type":"delta","text":"..."}`}</code> 增量正文</li>
+          <li><code>{`{"type":"error","message":"..."}`}</code> 失败</li>
+        </ul>
+        <p className="mt-2">未配置模型时返回 503。超限返回 429。</p>
+        <Code>{`curl -N -X POST https://news.airgzn.top/api/search \\
+  -H "Content-Type: application/json" \\
+  -d '{"query":"GPT-6 Astra 发布了什么"}'`}</Code>
+
+        <h2 className="mt-10 text-base font-medium text-zinc-900 dark:text-zinc-50">今日日报</h2>
+        <p className="mt-2">
+          首页展示半日摘要。生成后缓存 12 小时，打开页面不会重跑模型。<code>refresh=1</code> 才重新生成。每个 IP 每分钟 30 次。
         </p>
         <Code>{`GET /api/brief`}</Code>
-        <p className="mt-2">返回今日日报 Markdown 和对应条目。<code>refresh=1</code> 会重新生成。</p>
+        <Code>{`GET /api/brief?refresh=1`}</Code>
+        <p className="mt-2">JSON 字段：</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li><code>date</code> 上海时区日期</li>
+          <li><code>generatedAt</code> 生成时间（Unix 毫秒）</li>
+          <li><code>mode</code> <code>llm</code> 为 AI 总结，<code>extract</code> 为摘录回退</li>
+          <li><code>markdown</code> 固定两段：AI 焦点 / 其他资讯，约 11 条短结论</li>
+          <li><code>itemCount</code> 精选条数</li>
+          <li><code>feedsChecked</code> / <code>feedsOk</code> 检查与成功的订阅源数</li>
+        </ul>
+        <Code>{`curl -s https://news.airgzn.top/api/brief`}</Code>
 
         <h2 className="mt-10 text-base font-medium text-zinc-900 dark:text-zinc-50">条目字段</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5">

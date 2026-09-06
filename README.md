@@ -82,4 +82,8 @@ npx vercel --prod
 - `GET /api/v1/feed` JSON 聚合，可用 `since` 增量拉取
 - `GET /api/v1/rss` RSS 2.0，条目带一句摘要
 - `GET /api/v1/categories` 分类
-- 公开接口每个 IP 每分钟 60 次；超限返回 429
+- `POST /api/search` AI 搜索（SSE）。body：`query`、可选 `history`、最多 6 张 `images`。模型自带搜索，不读本地 RSS。每 IP 每分钟 20 次
+- `GET /api/brief` 今日半日摘要，默认读 12 小时缓存；`?refresh=1` 重新生成。每 IP 每分钟 30 次
+- 公开聚合接口每个 IP 每分钟 60 次；超限返回 429
+
+页面：`/` 今日日报（一屏、不滚动），`/ask` 可持续 AI 对话，`/?c=推荐` 资讯列表。
