@@ -4,7 +4,6 @@ import { HomeView } from '@/components/HomeView';
 import { getCatalogCategories } from '@/lib/catalog';
 import { compactFeedPages } from '@/lib/feed-bootstrap';
 import { buildInitialPages, buildPage, pageKey } from '@/lib/feed-page';
-import { readCachedBrief } from '@/lib/brief';
 import { ensureBackgroundRefresh, fetchAllFeeds, scheduleFeedRefresh } from '@/lib/rss';
 
 export const dynamic = 'force-dynamic';
@@ -39,14 +38,12 @@ export default async function Page({ searchParams }: PageProps) {
     failed: snapshot.failed,
   };
   const bootstrap = compactFeedPages(initialPages, snapshot.time, stats);
-  const initialBrief = await readCachedBrief();
 
   return (
     <HomeView
       initialBootstrap={bootstrap}
       initialCategory={view}
       initialQuery={query}
-      initialBrief={initialBrief}
       initialCachedAt={snapshot.time}
     />
   );

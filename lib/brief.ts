@@ -30,12 +30,8 @@ function briefPath(date: string) {
 }
 
 function isFresh(brief: DailyBrief, date: string) {
-  return (
-    brief.date === date &&
-    Date.now() - brief.generatedAt < BRIEF_TTL_MS &&
-    countPicks(brief.markdown) > 0 &&
-    countPicks(brief.markdown) <= 14
-  );
+  const picks = countPicks(brief.markdown);
+  return brief.date === date && Date.now() - brief.generatedAt < BRIEF_TTL_MS && picks >= 16 && picks <= 32;
 }
 
 function shortSource(source: string) {
@@ -52,7 +48,7 @@ function isCommitNoise(item: FeedItem) {
   return /^(fix|feat|chore|perf|test|docs|refactor)\s*[\(:]/i.test(item.title);
 }
 
-function clipFact(text: string, max = 36) {
+function clipFact(text: string, max = 56) {
   const compact = text.replace(/\s+/g, ' ').trim();
   if (compact.length <= max) return compact;
   const slice = compact.slice(0, max);
@@ -150,8 +146,8 @@ export function extractBrief(date: string, items: FeedItem[], checked: number, o
     (isAiItem(item) ? ai : other).push(item);
   }
 
-  const aiLines = ai.slice(0, 6).map(oneLine);
-  const otherLines = other.slice(0, 5).map(oneLine);
+  const aiLines = ai.slice(0, 12).map(oneLine);
+  const otherLines = other.slice(0, 10).map(oneLine);
   const selected = aiLines.length + otherLines.length;
   const lines = ['AI 焦点', ...aiLines, '其他资讯', ...otherLines, feedFooter(checked, ok, selected)];
 
@@ -166,7 +162,7 @@ export function extractBrief(date: string, items: FeedItem[], checked: number, o
   };
 }
 
-async function todayPool(limit = 22): Promise<BriefPool> {
+async function todayPool(limit = 40): Promise<BriefPool> {
   const snapshot = await fetchAllFeeds();
   const today = filterItems(snapshot.items, '推荐').map((item) => applyTranslation(item));
   const source = today.length >= 8 ? today : snapshot.items.map((item) => applyTranslation(item));
@@ -209,7 +205,7 @@ export async function readCachedBrief(): Promise<DailyBrief | null> {
 
 async function generateDailyBrief(): Promise<DailyBrief> {
   const date = shanghaiDay();
-  const pool = await todayPool(22);
+  const pool = await todayPool(40);
   const fallback = extractBrief(date, pool.items, pool.checked, pool.ok);
   if (pool.items.length === 0) {
     await writeBrief(fallback);
@@ -217,33 +213,33 @@ async function generateDailyBrief(): Promise<DailyBrief> {
   }
 
   try {
-    const sample = pool.items.slice(0, 20);
+    const sample = pool.items.slice(0, 36);
     const markdown = await completeChat({
-      maxTokens: 700,
-      timeoutMs: 40000,
+      maxTokens: 1600,
+      timeoutMs: 50000,
       messages: [
         {
           role: 'system',
           content:
-            '你是半日新闻摘要编辑。只根据给出的 RSS 条目做压缩总结，合并重复新闻，禁止编造。不要自我介绍，不要加标题或今日观察。',
+            '你是半日新闻摘要编辑。只根据给出的 RSS 条目总结，合并重复新闻，禁止编造。不要自我介绍，不要加总标题或今日观察。',
         },
         {
           role: 'user',
           content: `日期：${date}
-写成很短的半日摘要，必须刚好铺满一屏，不要写长。格式严格如下：
+写成半日新闻摘要。比标题长一点，把事实写清楚，但不要写成长文。格式严格如下：
 
 AI 焦点
-・[来源名 一句结论](原文链接)
+・[来源名 一句话事实](原文链接)
 其他资讯
-・[来源名 一句结论](原文链接)
+・[来源名 一句话事实](原文链接)
 来源：${pool.checked} feeds 检查 / ${pool.ok} feeds 成功 / {n} 条精选
 
 规则：
-- AI 焦点 4-6 条，只放模型、智能体、大厂 AI；主机促销、房产、数码配件不要塞进来
-- 其他资讯 4-5 条
-- 总共不超过 11 条，同类只留一条
-- 每条不超过 22 个汉字，只写结论
-- 必须写成 ・[来源 结论](真实链接) 单行，不要把链接单独换行
+- AI 焦点 10-12 条，只放模型、智能体、大厂 AI
+- 其他资讯 8-10 条：安全、硬件、产品、商业
+- 总共 18-22 条，同类只留一条
+- 每条 28-48 个汉字，写清谁做了什么，不要只抄标题
+- 必须写成 ・[来源 事实](真实链接) 单行
 - {n} 写成实际条数
 
 条目：
