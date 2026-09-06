@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDailyBrief } from '@/lib/brief';
+import { BRIEF_TTL_MS, getDailyBrief } from '@/lib/brief';
 import { attachRateLimitHeaders, rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
@@ -12,8 +12,13 @@ export async function GET(request: NextRequest) {
   try {
     const refresh = request.nextUrl.searchParams.get('refresh') === '1';
     const brief = await getDailyBrief({ refresh });
+    const maxAge = Math.floor(BRIEF_TTL_MS / 1000);
     const response = NextResponse.json(brief, {
-      headers: { 'Cache-Control': 'no-store' },
+      headers: {
+        'Cache-Control': refresh
+          ? 'no-store'
+          : `public, s-maxage=${maxAge}, stale-while-revalidate=${maxAge}`,
+      },
     });
     return attachRateLimitHeaders(response, request, { limit: 30, name: 'brief' });
   } catch (error) {

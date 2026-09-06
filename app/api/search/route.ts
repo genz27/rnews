@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
-import { ChatContent, ChatMessage, llmReady, prependSse, sseError, streamChat } from '@/lib/llm';
-import { formatNewsContext, looksLikeNewsQuery, searchNews } from '@/lib/news-search';
+import { ChatContent, ChatMessage, llmReady, sseError, streamChat } from '@/lib/llm';
 import { rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
@@ -45,23 +44,13 @@ export async function POST(request: NextRequest) {
   const images = asImages(body.images);
   const history = Array.isArray(body.history) ? body.history.slice(-8) : [];
 
-  const news = await searchNews(query, looksLikeNewsQuery(query) ? 18 : 10);
-  const context = formatNewsContext(news);
-
   const messages: ChatMessage[] = [
     {
       role: 'system',
       content:
-        '你是 Rnews 的资讯助手。用简洁中文回答，不要自称其他产品。涉及新闻时只依据提供的条目，并用 [标题](链接) 引用；不要编造条目里没有的新闻。一般知识问题可以直接答。',
+        '你是资讯助手。请使用你自带的实时搜索能力查找并回答。用简洁中文，分点可用「・」。涉及新闻时写清来源并附原文链接，不要编造搜不到的新闻，不要自称其他产品。',
     },
   ];
-
-  if (context) {
-    messages.push({
-      role: 'system',
-      content: `后台检索到的相关资讯：\n${context}`,
-    });
-  }
 
   for (const turn of history) {
     if ((turn.role === 'user' || turn.role === 'assistant') && typeof turn.content === 'string' && turn.content.trim()) {
@@ -72,7 +61,11 @@ export async function POST(request: NextRequest) {
   messages.push({ role: 'user', content: userContent(query, images) });
 
   try {
-    const stream = prependSse({ type: 'related', items: news }, await streamChat({ messages, signal: request.signal }));
+    const stream = await streamChat({
+      messages,
+      signal: request.signal,
+      extra: { search_parameters: { mode: 'auto' } },
+    });
     return new Response(stream, {
       headers: {
         'Content-Type': 'text/event-stream; charset=utf-8',
