@@ -65,7 +65,7 @@ export function PageShell({
             </Link>
           ) : null}
           <Link
-            href="/brief"
+            href="/"
             className={`shrink-0 px-1.5 text-sm transition ${
               briefActive
                 ? 'text-zinc-900 dark:text-zinc-50'
@@ -107,7 +107,7 @@ export function PageShell({
                 </Link>
               ) : null}
               <Link
-                href="/brief"
+                href="/"
                 className={`shrink-0 text-sm transition ${
                   briefActive
                     ? 'text-zinc-900 dark:text-zinc-50'
