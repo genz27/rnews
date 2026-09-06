@@ -114,11 +114,13 @@ export async function streamChat(options: {
           };
           const text = json.choices?.[0]?.delta?.content || json.choices?.[0]?.message?.content || '';
           if (text) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'delta', text })}\n\n`));
-          const urls = citationUrls(json.citations)
-            .concat(citationUrls(json.choices?.[0]?.delta?.citations))
-            .concat(citationUrls(json.search_results));
-          if (urls.length) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'citations', urls })}\n\n`));
+          const sources = citationSources(json.citations)
+            .concat(citationSources(json.choices?.[0]?.delta?.citations))
+            .concat(citationSources(json.search_results));
+          if (sources.length) {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: 'citations', sources, urls: sources.map((item) => item.href) })}\n\n`)
+            );
           }
         } catch {
           /* skip malformed chunk */
@@ -131,21 +133,23 @@ export async function streamChat(options: {
   });
 }
 
-function citationUrls(value: unknown): string[] {
+function citationSources(value: unknown): Array<{ href: string; title?: string }> {
   if (!Array.isArray(value)) return [];
-  const urls: string[] = [];
+  const sources: Array<{ href: string; title?: string }> = [];
   for (const item of value) {
     if (typeof item === 'string' && item.startsWith('http')) {
-      urls.push(item);
+      sources.push({ href: item });
       continue;
     }
     if (item && typeof item === 'object') {
-      const record = item as { url?: unknown; uri?: unknown };
+      const record = item as { url?: unknown; uri?: unknown; title?: unknown; name?: unknown };
       const href = typeof record.url === 'string' ? record.url : typeof record.uri === 'string' ? record.uri : '';
-      if (href.startsWith('http')) urls.push(href);
+      if (!href.startsWith('http')) continue;
+      const title = typeof record.title === 'string' ? record.title : typeof record.name === 'string' ? record.name : '';
+      sources.push({ href, title: title || undefined });
     }
   }
-  return urls;
+  return sources;
 }
 
 export function sseData(payload: unknown) {

@@ -10,23 +10,47 @@ export type ParsedAskAnswer = {
   followups: string[];
 };
 
+const GENERIC_SLUG = /^(index|home|news|latest|story|article|post|item|id|wiki|portal)$/i;
+
+function prettyTitle(href: string, host: string, title = '') {
+  const cleaned = title.replace(/^\[?\[?\d+\]?\]?$/, '').replace(/\s+/g, ' ').trim();
+  if (cleaned && cleaned.toLowerCase() !== host && cleaned.length > 2 && !/^https?:/i.test(cleaned)) {
+    return cleaned.slice(0, 48);
+  }
+  try {
+    const url = new URL(href);
+    const parts = url.pathname.split('/').filter(Boolean);
+    const last = decodeURIComponent(parts[parts.length - 1] || '').replace(/\.(html?|php|aspx)$/i, '');
+    if (last && !GENERIC_SLUG.test(last) && !/^\d+$/.test(last) && last.length > 2) {
+      return last.replace(/[-_]+/g, ' ').slice(0, 48);
+    }
+  } catch {
+    /* ignore */
+  }
+  return host;
+}
+
 function sourceFromUrl(href: string, title = '') {
   try {
     const host = new URL(href).hostname.replace(/^www\./, '');
-    return { href, host, title: title || host };
+    return { href, host, title: prettyTitle(href, host, title) };
   } catch {
     return null;
   }
 }
 
+function isBetterTitle(next: string, current: string, host: string) {
+  if (!next) return false;
+  if (!current || current === host) return next !== host;
+  return next.length > current.length && current === host;
+}
+
 function pushSource(list: AskSource[], href: string, title = '') {
   const next = sourceFromUrl(href, title);
   if (!next) return;
-  if (list.some((item) => item.href === next.href)) {
-    if (title && !list.find((item) => item.href === next.href)?.title) {
-      const current = list.find((item) => item.href === next.href);
-      if (current) current.title = title;
-    }
+  const existing = list.find((item) => item.href === next.href);
+  if (existing) {
+    if (isBetterTitle(next.title, existing.title, existing.host)) existing.title = next.title;
     return;
   }
   if (list.length >= 8) return;
@@ -56,7 +80,7 @@ function parseFollowups(block: string) {
   return block
     .split('\n')
     .map((line) => line.replace(/^[-*・·\d.、)\s]+/, '').trim())
-    .filter((line) => line && !/^https?:\/\//.test(line) && line.length < 40)
+    .filter((line) => line && !/^https?:\/\//.test(line) && line.length <= 48)
     .slice(0, 3);
 }
 
@@ -79,7 +103,10 @@ function parseSourceLines(block: string, list: AskSource[]) {
   }
 }
 
-export function parseAskAnswer(markdown: string, extraUrls: string[] = []): ParsedAskAnswer {
+export function parseAskAnswer(
+  markdown: string,
+  extra: Array<string | { href: string; title?: string }> = []
+): ParsedAskAnswer {
   const sources: AskSource[] = [];
   let text = markdown.replace(/\r\n/g, '\n').trim();
 
@@ -92,7 +119,10 @@ export function parseAskAnswer(markdown: string, extraUrls: string[] = []): Pars
   text = sourceSplit.body;
 
   collectLinks(text, sources);
-  for (const url of extraUrls) pushSource(sources, url);
+  for (const item of extra) {
+    if (typeof item === 'string') pushSource(sources, item);
+    else pushSource(sources, item.href, item.title || '');
+  }
 
   return {
     body: text.trim(),
