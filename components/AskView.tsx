@@ -17,7 +17,6 @@ export function AskView({ initialQuery = '', autoAsk = false }: { initialQuery?:
       hideTitle
       hidePills
       hideSideNav
-      hideBottomNav={active}
       headerRight={
         active ? (
           <button
