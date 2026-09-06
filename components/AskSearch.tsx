@@ -231,7 +231,7 @@ export function AskSearch({
           ))}
         </div>
       ) : null}
-      <div className="flex items-end gap-4">
+      <div className="flex items-end gap-3">
         <textarea
           ref={boxRef}
           value={query}
@@ -244,7 +244,7 @@ export function AskSearch({
           }}
           rows={2}
           placeholder="用 AI 搜索今日资讯"
-          className="min-h-12 w-full resize-none bg-transparent text-sm leading-6 text-zinc-800 outline-none placeholder:text-zinc-400 dark:text-zinc-200 dark:placeholder:text-zinc-600"
+          className="min-h-11 min-w-0 flex-1 resize-none bg-transparent text-sm leading-6 text-zinc-800 outline-none placeholder:text-zinc-400 dark:text-zinc-200 dark:placeholder:text-zinc-600"
         />
         <input
           ref={fileRef}
@@ -329,7 +329,7 @@ export function AskSearch({
   );
 
   return (
-    <div id="ask" className={layout === 'page' ? 'mt-6' : undefined}>
+    <div id="ask" className={layout === 'page' ? 'lg:mt-6' : undefined}>
       {layout === 'page' ? null : (
         <h2 className="mb-3 text-base font-medium tracking-tight text-zinc-900 dark:text-zinc-50">AI 搜索</h2>
       )}

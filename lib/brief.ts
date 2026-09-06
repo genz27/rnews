@@ -12,6 +12,10 @@ export type { DailyBrief };
 export const BRIEF_TAG = 'rnews-daily-brief';
 export const BRIEF_TTL_MS = 12 * 60 * 60 * 1000;
 const BRIEF_REVALIDATE_SECONDS = Math.floor(BRIEF_TTL_MS / 1000);
+const BRIEF_CACHE_VERSION = 'v2';
+const BRIEF_MIN_PICKS = 24;
+const BRIEF_MAX_PICKS = 40;
+const BRIEF_TARGET_PICKS = 30;
 
 const AI_HINT =
   /ai|gpt|openai|claude|gemini|llm|agent|agi|mcp|rag|deepseek|grok|anthropic|huggingface|codex|openclaw|智能体|大模型|机器学习/i;
@@ -25,13 +29,18 @@ type BriefPool = {
 };
 
 function briefPath(date: string) {
-  if (process.env.VERCEL) return path.join('/tmp', `rnews-brief-${date}.json`);
-  return path.join(process.cwd(), '.data', `brief-${date}.json`);
+  if (process.env.VERCEL) return path.join('/tmp', `rnews-brief-${BRIEF_CACHE_VERSION}-${date}.json`);
+  return path.join(process.cwd(), '.data', `brief-${BRIEF_CACHE_VERSION}-${date}.json`);
 }
 
 function isFresh(brief: DailyBrief, date: string) {
   const picks = countPicks(brief.markdown);
-  return brief.date === date && Date.now() - brief.generatedAt < BRIEF_TTL_MS && picks >= 16 && picks <= 32;
+  return (
+    brief.date === date &&
+    Date.now() - brief.generatedAt < BRIEF_TTL_MS &&
+    picks >= BRIEF_MIN_PICKS &&
+    picks <= BRIEF_MAX_PICKS
+  );
 }
 
 function shortSource(source: string) {
@@ -146,8 +155,8 @@ export function extractBrief(date: string, items: FeedItem[], checked: number, o
     (isAiItem(item) ? ai : other).push(item);
   }
 
-  const aiLines = ai.slice(0, 12).map(oneLine);
-  const otherLines = other.slice(0, 10).map(oneLine);
+  const aiLines = ai.slice(0, 16).map(oneLine);
+  const otherLines = other.slice(0, 16).map(oneLine);
   const selected = aiLines.length + otherLines.length;
   const lines = ['AI 焦点', ...aiLines, '其他资讯', ...otherLines, feedFooter(checked, ok, selected)];
 
@@ -162,7 +171,22 @@ export function extractBrief(date: string, items: FeedItem[], checked: number, o
   };
 }
 
-async function todayPool(limit = 40): Promise<BriefPool> {
+function padBriefMarkdown(markdown: string, items: FeedItem[], target = BRIEF_TARGET_PICKS) {
+  const extras: string[] = [];
+  let picks = countPicks(markdown);
+  for (const item of items) {
+    if (picks >= target) break;
+    if (mentionsLink(markdown, item.link) || extras.some((line) => line.includes(item.link))) continue;
+    extras.push(oneLine(item));
+    picks += 1;
+  }
+  if (extras.length === 0) return markdown;
+  const body = markdown.trim();
+  if (/其他资讯/.test(body)) return `${body}\n${extras.join('\n')}`;
+  return `${body}\n其他资讯\n${extras.join('\n')}`;
+}
+
+async function todayPool(limit = 80): Promise<BriefPool> {
   const snapshot = await fetchAllFeeds();
   const today = filterItems(snapshot.items, '推荐').map((item) => applyTranslation(item));
   const source = today.length >= 8 ? today : snapshot.items.map((item) => applyTranslation(item));
@@ -205,7 +229,7 @@ export async function readCachedBrief(): Promise<DailyBrief | null> {
 
 async function generateDailyBrief(): Promise<DailyBrief> {
   const date = shanghaiDay();
-  const pool = await todayPool(40);
+  const pool = await todayPool(80);
   const fallback = extractBrief(date, pool.items, pool.checked, pool.ok);
   if (pool.items.length === 0) {
     await writeBrief(fallback);
@@ -213,10 +237,10 @@ async function generateDailyBrief(): Promise<DailyBrief> {
   }
 
   try {
-    const sample = pool.items.slice(0, 36);
+    const sample = pool.items.slice(0, 56);
     const markdown = await completeChat({
-      maxTokens: 1600,
-      timeoutMs: 50000,
+      maxTokens: 4096,
+      timeoutMs: 60000,
       messages: [
         {
           role: 'system',
@@ -235,9 +259,9 @@ AI 焦点
 来源：${pool.checked} feeds 检查 / ${pool.ok} feeds 成功 / {n} 条精选
 
 规则：
-- AI 焦点 10-12 条，只放模型、智能体、大厂 AI
-- 其他资讯 8-10 条：安全、硬件、产品、商业
-- 总共 18-22 条，同类只留一条
+- AI 焦点 14-16 条，只放模型、智能体、大厂 AI
+- 其他资讯 12-16 条：安全、硬件、产品、商业、社区
+- 总共 28-32 条，同类只留一条
 - 每条 28-48 个汉字，写清谁做了什么，不要只抄标题
 - 必须写成 ・[来源 事实](真实链接) 单行
 - {n} 写成实际条数
@@ -251,12 +275,13 @@ ${sample
     });
     const grounded = sample.filter((item) => mentionsLink(markdown, item.link)).length;
     if (markdown.length > 40 && grounded >= 3) {
-      const selected = countPicks(markdown) || fallback.itemCount;
+      const padded = padBriefMarkdown(markdown, sample);
+      const selected = countPicks(padded);
       const brief: DailyBrief = {
         date,
         generatedAt: Date.now(),
         mode: 'llm',
-        markdown: withFooter(markdown, pool.checked, pool.ok, selected),
+        markdown: withFooter(padded, pool.checked, pool.ok, selected),
         itemCount: selected,
         feedsChecked: pool.checked,
         feedsOk: pool.ok,
@@ -279,7 +304,7 @@ const loadSharedBrief = unstable_cache(
     if (local) return local;
     return generateDailyBrief();
   },
-  ['rnews-daily-brief'],
+  ['rnews-daily-brief-v2'],
   { revalidate: BRIEF_REVALIDATE_SECONDS, tags: [BRIEF_TAG] }
 );
 
