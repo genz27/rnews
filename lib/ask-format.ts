@@ -10,24 +10,38 @@ export type ParsedAskAnswer = {
   followups: string[];
 };
 
-const GENERIC_SLUG = /^(index|home|news|latest|story|article|post|item|id|wiki|portal)$/i;
+const GENERIC_SLUG = /^(index|home|news|latest|story|article|post|item|id|wiki|portal|current|events|watch|v|video)$/i;
+const NOISY_HOST = /(news\.google\.com|news\.yahoo\.com|google\.com\/search)$/i;
 
-function prettyTitle(href: string, host: string, title = '') {
-  const cleaned = title.replace(/^\[?\[?\d+\]?\]?$/, '').replace(/\s+/g, ' ').trim();
-  if (cleaned && cleaned.toLowerCase() !== host && cleaned.length > 2 && !/^https?:/i.test(cleaned)) {
-    return cleaned.slice(0, 48);
-  }
+function usableLabel(text: string, host: string) {
+  const cleaned = text
+    .replace(/^\[?\[?\d+\]?\]?$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned || cleaned.toLowerCase() === host.toLowerCase() || /^https?:/i.test(cleaned)) return '';
+  if (cleaned.length <= 1) return '';
+  if (cleaned.length === 2 && !/[\u3400-\u9fff]/.test(cleaned)) return '';
+  return cleaned.slice(0, 56);
+}
+
+function slugTitle(href: string, host: string) {
+  if (NOISY_HOST.test(host)) return '';
   try {
     const url = new URL(href);
     const parts = url.pathname.split('/').filter(Boolean);
     const last = decodeURIComponent(parts[parts.length - 1] || '').replace(/\.(html?|php|aspx)$/i, '');
-    if (last && !GENERIC_SLUG.test(last) && !/^\d+$/.test(last) && last.length > 2) {
-      return last.replace(/[-_]+/g, ' ').slice(0, 48);
+    const pretty = last.replace(/[-_]+/g, ' ').trim();
+    if (!pretty || GENERIC_SLUG.test(pretty) || /^\d+$/.test(pretty) || /^\d{4}([-\s.]\d{2}){1,2}$/.test(pretty)) {
+      return '';
     }
+    return usableLabel(pretty, host);
   } catch {
-    /* ignore */
+    return '';
   }
-  return host;
+}
+
+function prettyTitle(href: string, host: string, title = '') {
+  return usableLabel(title, host) || slugTitle(href, host) || host;
 }
 
 function sourceFromUrl(href: string, title = '') {
@@ -39,10 +53,18 @@ function sourceFromUrl(href: string, title = '') {
   }
 }
 
+function titleScore(title: string, host: string) {
+  if (!title || title === host) return 0;
+  const hasCjk = /[\u3400-\u9fff]/.test(title);
+  const hasSpace = /\s/.test(title);
+  if (hasSpace || (hasCjk && title.length > 4)) return 30 + Math.min(title.length, 40);
+  if (hasCjk) return 16 + title.length;
+  if (title.length <= 16 && !/[/.]/.test(title)) return 10 + title.length;
+  return 6 + Math.min(title.length, 20);
+}
+
 function isBetterTitle(next: string, current: string, host: string) {
-  if (!next) return false;
-  if (!current || current === host) return next !== host;
-  return next.length > current.length && current === host;
+  return titleScore(next, host) > titleScore(current, host);
 }
 
 function pushSource(list: AskSource[], href: string, title = '') {
