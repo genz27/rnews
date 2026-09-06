@@ -1,7 +1,5 @@
 import { after } from 'next/server';
-import { cookies } from 'next/headers';
 import { HomeView } from '@/components/HomeView';
-import { CATEGORY_COOKIE, readCategoryCookie } from '@/lib/category-pref';
 import { getCatalogCategories } from '@/lib/catalog';
 import { compactFeedPages } from '@/lib/feed-bootstrap';
 import { buildInitialPages, buildPage, pageKey } from '@/lib/feed-page';
@@ -18,11 +16,9 @@ type PageProps = {
 export default async function Page({ searchParams }: PageProps) {
   const params = await searchParams;
   const categories = getCatalogCategories();
-  const cookieStore = await cookies();
   const ask = (params.ask || '').trim();
   const fromUrl = categories.includes(params.c || '') ? (params.c as string) : '';
-  const fromCookie = readCategoryCookie(cookieStore.get(CATEGORY_COOKIE)?.value, categories);
-  const category = ask ? '推荐' : fromUrl || fromCookie || '推荐';
+  const category = ask ? '推荐' : fromUrl || '推荐';
   const query = ask ? '' : (params.q || '').trim();
 
   ensureBackgroundRefresh();

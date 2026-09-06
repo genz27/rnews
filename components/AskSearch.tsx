@@ -163,6 +163,7 @@ export function AskSearch({
 
   return (
     <div id="ask">
+      <h2 className="mb-3 text-base font-medium tracking-tight text-zinc-900 dark:text-zinc-50">问资讯</h2>
       <form
         className="border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200"
         onSubmit={(event) => {

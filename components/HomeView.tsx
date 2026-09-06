@@ -41,7 +41,7 @@ export function HomeView({
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [help, setHelp] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(Boolean(initialQuery));
+  const [searchOpen, setSearchOpen] = useState(true);
   const [askSeed, setAskSeed] = useState(initialAsk);
   const [cachedAt, setCachedAt] = useState(initialCachedAt);
   const [now, setNow] = useState(() => Date.now());
@@ -418,7 +418,7 @@ export function HomeView({
           />
         </aside>
         <main id="feed" className="min-w-0">
-          {selectedCategory === '推荐' && !searchQuery ? (
+          {selectedCategory === '推荐' ? (
             <>
               <BriefPanel initialBrief={initialBrief} />
               <div className="mb-10">
