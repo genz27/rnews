@@ -418,29 +418,34 @@ export function HomeView({
           />
         </aside>
         <main id="feed" className="min-w-0">
-          {selectedCategory === '推荐' ? (
-            <BriefPanel initialBrief={initialBrief}>
-              <AskSearch
-                initialQuery={askSeed}
-                autoAsk={Boolean(askSeed)}
-                onSource={handleSource}
-                onCategory={handleSelectCategory}
-                inputRef={askInputRef}
-              />
-            </BriefPanel>
-          ) : null}
-          <Feed
-            category={selectedCategory}
-            searchQuery={searchQuery}
-            refreshKey={refreshKey}
-            initialBootstrap={initialBootstrap}
-            onBusyChange={handleBusy}
-            onRefreshed={handleRefreshed}
-            onCachedAt={setCachedAt}
-            onSource={handleSource}
-            onCategory={handleSelectCategory}
-            onPrefetch={handleRegisterPrefetch}
-          />
+          {selectedCategory === '推荐' && !searchQuery ? (
+            <>
+              <div className="mb-10">
+                <AskSearch
+                  initialQuery={askSeed}
+                  autoAsk={Boolean(askSeed)}
+                  showRelated={false}
+                  onSource={handleSource}
+                  onCategory={handleSelectCategory}
+                  inputRef={askInputRef}
+                />
+              </div>
+              <BriefPanel initialBrief={initialBrief} />
+            </>
+          ) : (
+            <Feed
+              category={selectedCategory}
+              searchQuery={searchQuery}
+              refreshKey={refreshKey}
+              initialBootstrap={initialBootstrap}
+              onBusyChange={handleBusy}
+              onRefreshed={handleRefreshed}
+              onCachedAt={setCachedAt}
+              onSource={handleSource}
+              onCategory={handleSelectCategory}
+              onPrefetch={handleRegisterPrefetch}
+            />
+          )}
         </main>
       </div>
 

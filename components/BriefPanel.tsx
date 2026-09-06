@@ -3,15 +3,9 @@
 import { MarkdownText } from '@/components/MarkdownText';
 import { formatUpdatedAt } from '@/lib/time';
 import { DailyBrief } from '@/lib/types';
-import { ReactNode, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-export function BriefPanel({
-  initialBrief = null,
-  children,
-}: {
-  initialBrief?: DailyBrief | null;
-  children?: ReactNode;
-}) {
+export function BriefPanel({ initialBrief = null }: { initialBrief?: DailyBrief | null }) {
   const [brief, setBrief] = useState<DailyBrief | null>(initialBrief);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(!initialBrief);
@@ -32,12 +26,11 @@ export function BriefPanel({
   };
 
   useEffect(() => {
-    if (initialBrief) return;
     void load(false);
-  }, [initialBrief]);
+  }, []);
 
   return (
-    <section id="brief" className="mb-10">
+    <section id="brief">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="text-base font-medium tracking-tight text-zinc-900 dark:text-zinc-50">今日日报</h2>
         <p className="text-sm text-zinc-500">
@@ -58,7 +51,6 @@ export function BriefPanel({
           </button>
         </p>
       </div>
-      {children ? <div className="mt-6 mb-8">{children}</div> : null}
       {error ? <p className="mt-4 text-sm text-zinc-500">{error}</p> : null}
       {brief ? (
         <div className="mt-4">

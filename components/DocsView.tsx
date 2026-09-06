@@ -51,7 +51,7 @@ export function DocsView() {
 
         <h2 className="mt-10 text-base font-medium text-zinc-900 dark:text-zinc-50">搜索与日报</h2>
         <p className="mt-2">
-          首页推荐流里就是今日日报、问资讯和标题搜索。浏览器只请求本站接口，不会直接打模型。回答会带上检索到的聚合条目。
+          首页只放问资讯和今日日报；日报走 <code>/api/brief</code>，服务端生成后缓存再返回。分类和标题搜索才会进入条目列表。浏览器不会直接打模型。
         </p>
         <Code>{`POST /api/search
 { "query": "今天有什么重要新闻", "images": [], "history": [] }`}</Code>

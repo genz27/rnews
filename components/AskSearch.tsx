@@ -29,12 +29,14 @@ function readImage(file: File) {
 export function AskSearch({
   initialQuery = '',
   autoAsk = false,
+  showRelated = true,
   onSource,
   onCategory,
   inputRef,
 }: {
   initialQuery?: string;
   autoAsk?: boolean;
+  showRelated?: boolean;
   onSource?: (source: string) => void;
   onCategory?: (category: string) => void;
   inputRef?: RefObject<HTMLTextAreaElement | null>;
@@ -266,7 +268,7 @@ export function AskSearch({
                   ))}
                 </div>
               ) : null}
-              {turn.items.length > 0 ? (
+              {showRelated && turn.items.length > 0 ? (
                 <div className="mt-5">
                   <p className="mb-2 text-xs text-zinc-400 lg:text-[13px] lg:text-zinc-500">
                     相关 {turn.items.length} 条
