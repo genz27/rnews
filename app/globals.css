@@ -115,7 +115,8 @@ body {
   contain: content;
 }
 
-.feed-row {
+.feed-row,
+.brief-row {
   content-visibility: auto;
   contain-intrinsic-size: auto 7.5rem;
 }

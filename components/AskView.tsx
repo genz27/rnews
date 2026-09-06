@@ -2,27 +2,32 @@
 
 import { AskSearch } from '@/components/AskSearch';
 import { PageShell } from '@/components/PageShell';
-import { useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 export function AskView({ initialQuery = '', autoAsk = false }: { initialQuery?: string; autoAsk?: boolean }) {
   const clearRef = useRef<(() => void) | null>(null);
+  const [active, setActive] = useState(false);
+  const handleActive = useCallback((next: boolean) => setActive(next), []);
 
   return (
     <PageShell
       title="AI 搜索"
-      subtitle="先搜，再往下看回答"
+      subtitle="有问题就搜"
       searchActive
+      hideTitle
       headerRight={
-        <button
-          type="button"
-          onClick={() => clearRef.current?.()}
-          className="px-1.5 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
-        >
-          新对话
-        </button>
+        active ? (
+          <button
+            type="button"
+            onClick={() => clearRef.current?.()}
+            className="px-1.5 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+          >
+            新搜索
+          </button>
+        ) : null
       }
     >
-      <AskSearch persist layout="page" initialQuery={initialQuery} autoAsk={autoAsk} onClearRef={clearRef} />
+      <AskSearch initialQuery={initialQuery} autoAsk={autoAsk} onClearRef={clearRef} onActiveChange={handleActive} />
     </PageShell>
   );
 }

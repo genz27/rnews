@@ -16,6 +16,7 @@ export function PageShell({
   briefActive,
   docsActive,
   fullHeight = false,
+  hideTitle = false,
   hideBottomNav = false,
   headerRight,
   children,
@@ -26,6 +27,7 @@ export function PageShell({
   briefActive?: boolean;
   docsActive?: boolean;
   fullHeight?: boolean;
+  hideTitle?: boolean;
   hideBottomNav?: boolean;
   headerRight?: ReactNode;
   children: ReactNode;
@@ -124,7 +126,7 @@ export function PageShell({
           />
         </aside>
         <main className={`min-w-0 flex-1 ${fullHeight ? 'flex min-h-0 flex-col' : ''}`}>
-          {fullHeight ? (
+          {hideTitle ? null : fullHeight ? (
             <h2 className="mb-3 hidden shrink-0 text-base font-medium tracking-tight text-zinc-900 lg:block dark:text-zinc-50">
               {title}
             </h2>

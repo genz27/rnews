@@ -3,7 +3,7 @@ import { AskView } from '@/components/AskView';
 
 export const metadata: Metadata = {
   title: 'AI 搜索 · Rnews',
-  description: '用 AI 搜索资讯，并继续追问。',
+  description: '用 AI 搜索资讯，先看结论和来源，再追问。',
 };
 
 type PageProps = {

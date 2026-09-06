@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 
 const SECTION = /^(AI 焦点|其他资讯|今日要点|今日观察)$/;
 const LIST = /^[-*・·]\s*/;
@@ -31,15 +31,23 @@ function renderInline(text: string, compact = false) {
     if (/^https?:\/\//.test(part)) {
       const href = trimUrl(part);
       const trailing = part.slice(href.length);
+      let label = '原文';
+      if (!compact) {
+        try {
+          label = new URL(href).hostname.replace(/^www\./, '');
+        } catch {
+          label = '原文';
+        }
+      }
       return (
         <span key={index}>
           <a
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className={`${compact ? '' : 'break-all '}underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 dark:decoration-white/20 dark:hover:text-zinc-100`}
+            className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 dark:decoration-white/20 dark:hover:text-zinc-100"
           >
-            {compact ? '原文' : href}
+            {label}
           </a>
           {trailing}
         </span>
@@ -63,7 +71,7 @@ function headingText(line: string) {
   return line.trim().replace(/^#{1,3}\s+/, '');
 }
 
-export function MarkdownText({ text, compact = false }: { text: string; compact?: boolean }) {
+function MarkdownBody({ text, compact = false }: { text: string; compact?: boolean }) {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const blocks: ReactNode[] = [];
   let index = 0;
@@ -103,7 +111,7 @@ export function MarkdownText({ text, compact = false }: { text: string; compact?
       blocks.push(
         <ul key={`l-${start}`} className={`list-none pl-0 ${compact ? 'space-y-1' : 'space-y-2'}`}>
           {items.map((item, itemIndex) => (
-            <li key={itemIndex} className="flex gap-2">
+            <li key={itemIndex} className="brief-row flex gap-2">
               <span className="shrink-0 text-zinc-400">・</span>
               <span className="min-w-0">{renderInline(item, compact)}</span>
             </li>
@@ -143,3 +151,6 @@ export function MarkdownText({ text, compact = false }: { text: string; compact?
     </div>
   );
 }
+
+export const MarkdownText = memo(MarkdownBody);
+MarkdownText.displayName = 'MarkdownText';
