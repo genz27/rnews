@@ -14,6 +14,7 @@ export function AskView({ initialQuery = '', autoAsk = false }: { initialQuery?:
       searchActive
       fullHeight
       hideMobileBack
+      hideBottomNav
       headerRight={
         <button
           type="button"

@@ -51,8 +51,8 @@ export function SideNav({
         <NavLink href="/ask" active={searchActive}>
           AI 搜索
         </NavLink>
-        <NavLink href="/" active={briefActive}>
-          日报
+        <NavLink href="/#brief" active={briefActive}>
+          今日日报
         </NavLink>
         <NavLink href="/docs" active={docsActive}>
           文档

@@ -37,7 +37,6 @@ export function HomeView({
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [briefTick, setBriefTick] = useState(0);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [help, setHelp] = useState(false);
@@ -90,18 +89,15 @@ export function HomeView({
   }, []);
 
   const handleRefresh = useCallback(() => {
-    if (selectedRef.current === '首页') {
-      setBriefTick((value) => value + 1);
-      return;
+    if (selectedRef.current !== '首页') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     }
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     setRefreshKey((value) => value + 1);
   }, []);
 
   const handleSearch = useCallback(
     (query: string) => {
-      const target = selectedRef.current === '首页' ? '推荐' : selectedRef.current;
-      if (target !== selectedRef.current) setSelectedCategory(target);
+      const target = selectedRef.current;
       setSearchQuery(query);
       writeUrl(target, query, false);
     },
@@ -127,10 +123,6 @@ export function HomeView({
   );
 
   const focusSearch = useCallback(() => {
-    if (selectedRef.current === '首页') {
-      router.push('/ask');
-      return;
-    }
     const mobile = window.matchMedia('(max-width: 1023px)').matches;
     if (mobile) {
       setSearchOpen(true);
@@ -142,11 +134,11 @@ export function HomeView({
     }
     desktopSearchRef.current?.focus();
     desktopSearchRef.current?.select();
-  }, [router]);
+  }, []);
 
   const handleSource = useCallback(
     (source: string) => {
-      const target = selectedRef.current === '首页' ? '推荐' : selectedRef.current;
+      const target = selectedRef.current;
       setSelectedCategory(target);
       setSearchQuery(source);
       writeUrl(target, source, false);
@@ -156,7 +148,7 @@ export function HomeView({
   );
 
   const handleRefreshed = useCallback(() => {
-    setToast(selectedCategory === '推荐' && !searchQuery ? '已换一批' : '已更新');
+    setToast((selectedCategory === '推荐' || selectedCategory === '首页') && !searchQuery ? '已换一批' : '已更新');
   }, [searchQuery, selectedCategory]);
 
   const clearToast = useCallback(() => setToast(null), []);
@@ -260,7 +252,7 @@ export function HomeView({
   }, [categories, focusSearch, handleRefresh, handleSearch, handleSelectCategory, help, searchOpen, searchQuery, selectedCategory]);
 
   return (
-    <div className={isHome ? 'flex h-svh flex-col overflow-hidden' : 'min-h-svh'}>
+    <div className="min-h-svh">
       <a
         href="#feed"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded focus:bg-zinc-900 focus:px-3 focus:py-1.5 focus:text-sm focus:text-white dark:focus:bg-zinc-100 dark:focus:text-zinc-900"
@@ -280,29 +272,20 @@ export function HomeView({
           <p className="min-w-0 flex-1 truncate px-1 text-xs text-zinc-400">
             {cachedAt ? formatUpdatedAt(cachedAt, now) : '聚合资讯'}
           </p>
-          <Link
-            href="/ask"
+          <button
+            type="button"
+            onClick={() => {
+              setSearchOpen((open) => {
+                const next = !open;
+                if (next) window.setTimeout(() => searchRef.current?.focus(), 20);
+                return next;
+              });
+            }}
             className="inline-flex size-9 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
-            aria-label="AI 搜索"
+            aria-label="筛选标题"
           >
             <SearchIcon />
-          </Link>
-          {isHome ? null : (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchOpen((open) => {
-                  const next = !open;
-                  if (next) window.setTimeout(() => searchRef.current?.focus(), 20);
-                  return next;
-                });
-              }}
-              className="inline-flex size-9 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
-              aria-label="筛选标题"
-            >
-              <FilterIcon />
-            </button>
-          )}
+          </button>
           <button
             type="button"
             onClick={handleRefresh}
@@ -315,7 +298,7 @@ export function HomeView({
           </button>
           <ThemeToggle compact />
         </div>
-        {searchOpen && !isHome ? (
+        {searchOpen ? (
           <div className="px-4 pb-2 lg:hidden">
             <div className="rounded-full bg-zinc-100 px-4 py-2 dark:bg-white/[0.06]">
               <SearchBar
@@ -327,17 +310,15 @@ export function HomeView({
             </div>
           </div>
         ) : null}
-        {isHome ? null : (
-          <div className="px-4 pb-2.5 lg:hidden">
-            <CategoryChips
-              layout="pills"
-              categories={categories}
-              selected={selectedCategory}
-              onSelect={handleSelectCategory}
-              onPrefetch={handlePrefetch}
-            />
-          </div>
-        )}
+        <div className="px-4 pb-2.5 lg:hidden">
+          <CategoryChips
+            layout="pills"
+            categories={categories}
+            selected={selectedCategory}
+            onSelect={handleSelectCategory}
+            onPrefetch={handlePrefetch}
+          />
+        </div>
 
         <div className="mx-auto hidden max-w-6xl px-5 py-4 lg:block lg:px-8 lg:py-5">
           <div className="flex items-center justify-between gap-6">
@@ -346,7 +327,7 @@ export function HomeView({
                 <Link href="/">Rnews</Link>
               </h1>
               <p className="mt-1 text-sm leading-6 text-zinc-500">
-                {isHome ? '半日新闻摘要' : '聚合技术社区、AI、科技媒体与主机资讯'}
+                聚合技术社区、AI、科技媒体与主机资讯
                 {cachedAt ? (
                   <>
                     <span className="text-zinc-300 dark:text-zinc-700"> · </span>
@@ -356,16 +337,14 @@ export function HomeView({
               </p>
             </div>
             <div className="flex min-w-0 shrink-0 items-center justify-end gap-5">
-              {isHome ? null : (
-                <div className="w-[22rem] border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200">
-                  <SearchBar
-                    value={searchQuery}
-                    onSearch={handleSearch}
-                    placeholder="搜索标题、摘要或来源"
-                    inputRef={desktopSearchRef}
-                  />
-                </div>
-              )}
+              <div className="w-[22rem] border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200">
+                <SearchBar
+                  value={searchQuery}
+                  onSearch={handleSearch}
+                  placeholder="搜索标题、摘要或来源"
+                  inputRef={desktopSearchRef}
+                />
+              </div>
               <Link href="/ask" className="shrink-0 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200">
                 AI 搜索
               </Link>
@@ -385,14 +364,8 @@ export function HomeView({
         </div>
       </header>
 
-      <div
-        className={`mx-auto grid w-full max-w-6xl gap-10 px-4 lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:gap-16 lg:px-8 ${
-          isHome
-            ? 'min-h-0 flex-1 grid-rows-1 overflow-hidden py-3 pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:py-6 lg:pb-6'
-            : 'py-4 pb-24 lg:py-10 lg:pb-10'
-        }`}
-      >
-        <aside className="hidden min-h-0 lg:block">
+      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-4 pb-24 lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:gap-16 lg:px-8 lg:py-10 lg:pb-10">
+        <aside className="hidden lg:block">
           <SideNav
             categories={categories}
             selected={selectedCategory}
@@ -401,28 +374,43 @@ export function HomeView({
             briefActive={isHome}
           />
         </aside>
-        <main id="feed" className={`min-w-0 ${isHome ? 'flex min-h-0 flex-col overflow-hidden' : ''}`}>
+        <main id="feed" className="min-w-0">
           {isHome ? (
-            <BriefPanel initialBrief={initialBrief} fill reloadToken={briefTick} />
-          ) : (
-            <Feed
-              category={selectedCategory === '全部' || getCatalogCategories().includes(selectedCategory) ? selectedCategory : '推荐'}
-              searchQuery={searchQuery}
-              refreshKey={refreshKey}
-              initialBootstrap={initialBootstrap}
-              onBusyChange={handleBusy}
-              onRefreshed={handleRefreshed}
-              onCachedAt={setCachedAt}
-              onSource={handleSource}
-              onCategory={handleSelectCategory}
-              onPrefetch={handleRegisterPrefetch}
-            />
-          )}
+            <div className="mb-10 border-b border-zinc-200/80 pb-8 dark:border-white/[0.06]">
+              <BriefPanel initialBrief={initialBrief} />
+            </div>
+          ) : null}
+          {isHome ? (
+            <div className="mb-4 flex items-baseline justify-between gap-3">
+              <h2 id="recommend" className="text-base font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
+                今日推荐
+              </h2>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                className="text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+              >
+                换一批
+              </button>
+            </div>
+          ) : null}
+          <Feed
+            category={isHome ? '推荐' : selectedCategory === '全部' || getCatalogCategories().includes(selectedCategory) ? selectedCategory : '推荐'}
+            searchQuery={searchQuery}
+            refreshKey={refreshKey}
+            initialBootstrap={initialBootstrap}
+            onBusyChange={handleBusy}
+            onRefreshed={handleRefreshed}
+            onCachedAt={setCachedAt}
+            onSource={handleSource}
+            onCategory={handleSelectCategory}
+            onPrefetch={handleRegisterPrefetch}
+          />
         </main>
       </div>
 
       <BottomNav selected={selectedCategory} onSelect={handleSelectCategory} />
-      {isHome ? null : <BackToTop />}
+      <BackToTop />
       <Toast message={toast} onDone={clearToast} />
 
       {help ? (
@@ -438,7 +426,7 @@ export function HomeView({
           >
             <p className="mb-3 text-zinc-900 dark:text-zinc-50">快捷键</p>
             <ul className="space-y-2">
-              <li><Kbd>/</Kbd> 或 <Kbd>⌘K</Kbd> {isHome ? '打开 AI 搜索' : '搜索标题'}</li>
+              <li><Kbd>/</Kbd> 或 <Kbd>⌘K</Kbd> 搜索标题</li>
               <li><Kbd>R</Kbd> 刷新 / 换一批</li>
               <li><Kbd>J</Kbd> <Kbd>K</Kbd> 上下移动，回车打开</li>
               <li><Kbd>[</Kbd> <Kbd>]</Kbd> 切换分类</li>
@@ -465,14 +453,6 @@ function SearchIcon() {
     <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
       <circle cx="11" cy="11" r="6.5" />
       <path d="m16 16 4 4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function FilterIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
-      <path d="M4 7h16M7 12h10M10 17h4" strokeLinecap="round" />
     </svg>
   );
 }

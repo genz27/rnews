@@ -15,6 +15,7 @@ export function PageShell({
   docsActive,
   fullHeight = false,
   hideMobileBack = false,
+  hideBottomNav = false,
   headerRight,
   children,
 }: {
@@ -25,11 +26,12 @@ export function PageShell({
   docsActive?: boolean;
   fullHeight?: boolean;
   hideMobileBack?: boolean;
+  hideBottomNav?: boolean;
   headerRight?: ReactNode;
   children: ReactNode;
 }) {
   const categories = getNavCategories();
-  const selected = searchActive ? '搜索' : briefActive ? '首页' : docsActive ? '' : '';
+  const selected = searchActive ? 'AI' : briefActive ? '首页' : '';
 
   return (
     <div className={fullHeight ? 'flex h-svh flex-col overflow-hidden' : 'min-h-svh'}>
@@ -50,7 +52,7 @@ export function PageShell({
       <div
         className={`mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 gap-10 px-4 lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:gap-16 lg:px-8 ${
           fullHeight
-            ? 'min-h-0 overflow-hidden py-3 pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:py-6 lg:pb-6'
+            ? `min-h-0 overflow-hidden py-3 ${hideBottomNav ? 'pb-3' : 'pb-[calc(4.75rem+env(safe-area-inset-bottom))]'} lg:py-6 lg:pb-6`
             : 'py-6 pb-24 lg:py-10 lg:pb-10'
         }`}
       >
@@ -78,7 +80,7 @@ export function PageShell({
           {children}
         </main>
       </div>
-      <BottomNav selected={selected} />
+      {hideBottomNav ? null : <BottomNav selected={selected} />}
     </div>
   );
 }
