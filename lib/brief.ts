@@ -113,10 +113,27 @@ function countPicks(markdown: string) {
   return (markdown.match(/^[・·]\s*/gm) || []).length;
 }
 
+function normalizeBriefMarkdown(markdown: string) {
+  const lines: string[] = [];
+  for (const raw of markdown.replace(/\r\n/g, '\n').split('\n')) {
+    const line = raw.trim();
+    const urlOnly = /^(https?:\/\/\S+)\s*$/.exec(line);
+    if (urlOnly && lines.length > 0) {
+      const prev = lines[lines.length - 1];
+      if (/^[・·]/.test(prev) && !prev.includes('](')) {
+        const text = prev.replace(/^[・·]\s*/, '').replace(/\s+$/g, '');
+        lines[lines.length - 1] = `・[${text}](${urlOnly[1]})`;
+        continue;
+      }
+    }
+    if (line) lines.push(raw);
+  }
+  return lines.join('\n');
+}
+
 function withFooter(markdown: string, checked: number, ok: number, selected: number) {
   const footer = feedFooter(checked, ok, selected);
-  const cleaned = markdown
-    .replace(/\r\n/g, '\n')
+  const cleaned = normalizeBriefMarkdown(markdown)
     .replace(/^#{1,3}\s+/gm, '')
     .replace(/^📰.*$/gm, '')
     .replace(/^─{3,}.*$/gm, '')
@@ -222,11 +239,12 @@ AI 焦点
 来源：${pool.checked} feeds 检查 / ${pool.ok} feeds 成功 / {n} 条精选
 
 规则：
-- AI 焦点正好 6 条，其他资讯正好 5 条，总共 11 条
-- 每条不超过 22 个汉字，只写结论，不要复述标题全文
-- 同类新闻只留一条
-- 必须用条目里的真实链接
-- {n} 写成 11
+- AI 焦点 4-6 条，只放模型、智能体、大厂 AI；主机促销、房产、数码配件不要塞进来
+- 其他资讯 4-5 条
+- 总共不超过 11 条，同类只留一条
+- 每条不超过 22 个汉字，只写结论
+- 必须写成 ・[来源 结论](真实链接) 单行，不要把链接单独换行
+- {n} 写成实际条数
 
 条目：
 ${sample
