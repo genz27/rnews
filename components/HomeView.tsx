@@ -302,6 +302,20 @@ export function HomeView({
             onSelect={handleSelectCategory}
             onPrefetch={handlePrefetch}
           />
+          <div className="mt-3 flex gap-4 text-sm text-zinc-500">
+            <Link
+              href={searchQuery.trim() ? `/search?q=${encodeURIComponent(searchQuery.trim())}` : '/search'}
+              className="hover:text-zinc-800 dark:hover:text-zinc-200"
+            >
+              搜索
+            </Link>
+            <Link href="/brief" className="hover:text-zinc-800 dark:hover:text-zinc-200">
+              日报
+            </Link>
+            <Link href="/docs" className="hover:text-zinc-800 dark:hover:text-zinc-200">
+              文档
+            </Link>
+          </div>
         </div>
 
         <div className="mx-auto hidden max-w-6xl px-5 py-4 lg:block lg:px-8 lg:py-5">
@@ -320,7 +334,7 @@ export function HomeView({
                 ) : null}
               </p>
             </div>
-            <div className="flex min-w-0 items-center gap-5 lg:w-[28rem]">
+            <div className="flex min-w-0 items-center gap-5 lg:w-[32rem]">
               <div className="min-w-0 flex-1 border-b border-zinc-200/80 pb-2 transition-colors duration-200 focus-within:border-zinc-800 dark:border-white/[0.08] dark:focus-within:border-zinc-200">
                 <SearchBar
                   value={searchQuery}
@@ -329,6 +343,12 @@ export function HomeView({
                   inputRef={desktopSearchRef}
                 />
               </div>
+              <Link
+                href={searchQuery.trim() ? `/search?q=${encodeURIComponent(searchQuery.trim())}` : '/search'}
+                className="shrink-0 text-sm text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+              >
+                问资讯
+              </Link>
               <button
                 type="button"
                 onClick={handleRefresh}

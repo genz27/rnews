@@ -311,6 +311,17 @@ export function Feed({
 
   return (
     <section className="feed-pane">
+      {recommend && !searchQuery ? (
+        <p className="mb-3 text-[13px] text-zinc-500">
+          <a href="/brief" className="hover:text-zinc-800 dark:hover:text-zinc-200">
+            今日日报
+          </a>
+          <span className="text-zinc-300 dark:text-zinc-700"> · </span>
+          <a href="/search" className="hover:text-zinc-800 dark:hover:text-zinc-200">
+            问资讯
+          </a>
+        </p>
+      ) : null}
       <p className="mb-2 text-xs text-zinc-400 lg:mb-3 lg:text-[13px] lg:text-zinc-500">
         {searchQuery
           ? `找到 ${activePage.total} 条 · 「${searchQuery}」`
