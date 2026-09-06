@@ -358,8 +358,8 @@ export function AskSearch({
           <div
             className={
               dockFollowups.length > 0
-                ? 'mx-auto w-full max-w-2xl pb-60 lg:pb-48'
-                : 'mx-auto w-full max-w-2xl pb-52 lg:pb-40'
+                ? 'mx-auto w-full max-w-2xl pb-40 lg:pb-44'
+                : 'mx-auto w-full max-w-2xl pb-28 lg:pb-36'
             }
           >
             {turns.map((turn, index) => {
@@ -439,7 +439,7 @@ export function AskSearch({
             })}
             <div ref={bottomRef} />
           </div>
-          <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 bg-gradient-to-t from-zinc-50 via-zinc-50/95 to-transparent px-4 pb-2 pt-8 dark:from-zinc-950 dark:via-zinc-950/95 lg:bottom-4 lg:px-8">
+          <div className="pointer-events-none fixed inset-x-0 bottom-[calc(0.5rem+env(safe-area-inset-bottom))] z-30 bg-gradient-to-t from-zinc-50 via-zinc-50/95 to-transparent px-4 pb-2 pt-8 dark:from-zinc-950 dark:via-zinc-950/95 lg:bottom-4 lg:px-8">
             <div className="pointer-events-auto mx-auto w-full max-w-2xl">
               {dockFollowups.length > 0 ? (
                 <div className="-mx-1 mb-2.5 flex gap-2 overflow-x-auto px-1 pb-0.5 scrollbar-hide">
