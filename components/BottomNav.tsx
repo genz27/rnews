@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 const TABS = [
   { id: '首页', label: '首页', href: '/' },
   { id: '推荐', label: '推荐', href: '/?c=推荐' },
-  { id: 'AI', label: 'AI', href: '/ask' },
+  { id: '搜索', label: 'AI', href: '/ask' },
   { id: '社区', label: '社区', href: '/?c=社区' },
   { id: '资讯', label: '资讯', href: '/?c=资讯' },
 ] as const;
@@ -20,18 +20,16 @@ export function BottomNav({
   const router = useRouter();
   const active = TABS.some((tab) => tab.id === selected)
     ? selected
-    : selected === '搜索'
-      ? 'AI'
-      : selected === '首页' || selected === ''
-        ? '首页'
-        : '';
+    : selected === '首页' || selected === ''
+      ? '首页'
+      : '';
 
   const go = (id: string, href: string) => {
-    if (id === 'AI') {
+    if (id === '搜索') {
       router.push('/ask');
       return;
     }
-    if (onSelect && id !== 'AI') {
+    if (onSelect) {
       onSelect(id);
       return;
     }
@@ -75,7 +73,7 @@ function TabIcon({ name, active }: { name: string; active: boolean }) {
         <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z" strokeLinejoin="round" />
       ) : name === '推荐' ? (
         <path d="M5 7h14M5 12h8M5 17h11" strokeLinecap="round" />
-      ) : name === 'AI' ? (
+      ) : name === '搜索' ? (
         <>
           <rect x="6" y="7" width="12" height="11" rx="2.5" />
           <path d="M9 11h.01M15 11h.01M9.5 15h5" strokeLinecap="round" />

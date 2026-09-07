@@ -68,7 +68,9 @@ function normalizeCache(state: CacheState): CacheState | null {
   return {
     ...state,
     items: state.items.map((item) => {
-      const snippet = item.snippet ? finalizeSnippet(item.snippet, item.title) : undefined;
+      const snippet = item.snippet
+        ? finalizeSnippet(item.snippet, item.title, item.titleZh)
+        : undefined;
       const next = {
         ...item,
         category: normalizeCategory(item.category),
@@ -325,19 +327,22 @@ function toSnippet(item: ParsedItem, title: string): string | undefined {
 const JUNK_SNIPPET =
   /^(点击查看原文|查看原文|阅读全文|全文阅读|read more|continue reading|click here)$/i;
 
-export function finalizeSnippet(text: string, title: string): string | undefined {
+export function finalizeSnippet(text: string, title: string, titleZh?: string): string | undefined {
   let next = stripHtml(text);
   if (!next) return undefined;
-  const normalizedTitle = title.replace(/\s+/g, ' ').trim();
-  if (normalizedTitle && next.startsWith(normalizedTitle)) {
-    next = next.slice(normalizedTitle.length);
+  const titles = [title, titleZh].filter((value): value is string => Boolean(value && value.trim()));
+  for (const heading of titles) {
+    const normalizedTitle = heading.replace(/\s+/g, ' ').trim();
+    if (normalizedTitle && next.startsWith(normalizedTitle)) {
+      next = next.slice(normalizedTitle.length);
+    }
   }
   next = next
     .replace(/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}[ T]\d{1,2}:\d{2}(?::\d{2})?\s*/, '')
     .replace(/^作者[：:]\s*\S+\s*/, '')
     .trim()
     .replace(/^[\s\-—–:：|·,，、。;；"'“”‘’]+/, '');
-  if (!next || next.length < 4 || similarText(next, title)) return undefined;
+  if (!next || next.length < 4 || titles.some((heading) => similarText(next, heading))) return undefined;
   const compact = next.replace(/[>\s.。…]+$/g, '').trim();
   if (JUNK_SNIPPET.test(compact)) return undefined;
   return clipSnippet(next, 140);
@@ -540,7 +545,7 @@ async function refreshAll(): Promise<CacheState> {
 
 function stampTranslations(state: CacheState): CacheState {
   const items = state.items.map((item) => {
-    const snippet = item.snippet ? finalizeSnippet(item.snippet, item.title) : undefined;
+    const snippet = item.snippet ? finalizeSnippet(item.snippet, item.title, item.titleZh) : undefined;
     const next = { ...item };
     if (snippet) next.snippet = snippet;
     else delete next.snippet;
