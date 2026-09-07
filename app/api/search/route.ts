@@ -3,7 +3,7 @@ import { ChatContent, ChatMessage, llmReady, sseError, streamChat } from '@/lib/
 import { rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 type HistoryTurn = { role?: string; content?: string };
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
   try {
     const stream = await streamChat({
       messages,
-      signal: request.signal,
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(270000)]),
       extra: { search_parameters: { mode: 'auto', return_citations: true } },
     });
     return new Response(stream, {

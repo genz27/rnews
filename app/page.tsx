@@ -7,7 +7,7 @@ import { buildInitialPages, buildPage, pageKey } from '@/lib/feed-page';
 import { ensureBackgroundRefresh, fetchAllFeeds, scheduleFeedRefresh } from '@/lib/rss';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 15;
 
 type PageProps = {
   searchParams: Promise<{ c?: string; q?: string; ask?: string }>;

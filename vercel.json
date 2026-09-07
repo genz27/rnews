@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "functions": {
-    "app/api/search/route.ts": { "maxDuration": 60 },
+    "app/api/search/route.ts": { "maxDuration": 300 },
     "app/api/brief/route.ts": { "maxDuration": 60 }
   }
 }

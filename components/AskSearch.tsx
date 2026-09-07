@@ -130,12 +130,12 @@ export function AskSearch({
       });
       if (!response.ok || !response.body) {
         const raw = await response.text();
-        let message = '暂时答不出来，请稍后再试。';
+        let message = response.status === 504 ? '这次搜太久了，请再试一次。' : '暂时答不出来，请稍后再试。';
         try {
           const parsed = JSON.parse(raw) as { error?: string };
           if (parsed.error) message = parsed.error;
         } catch {
-          if (raw.trim()) message = raw.slice(0, 180);
+          if (raw.trim() && !/FUNCTION_INVOCATION_TIMEOUT/i.test(raw)) message = raw.slice(0, 180);
         }
         setTurns((current) => current.map((turn) => (turn.id === id ? { ...turn, error: message } : turn)));
         return;
