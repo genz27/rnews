@@ -25,7 +25,9 @@ export const FeedRow = memo(function FeedRow({
   const display = item.titleZh || item.title;
   const original = item.titleZh && item.titleZh !== item.title ? item.title : '';
   const snippet =
-    item.snippet && item.snippet !== display && item.snippet !== item.title ? item.snippet : '';
+    item.snippet && !sameLine(item.snippet, display) && !sameLine(item.snippet, item.title)
+      ? item.snippet
+      : '';
 
   return (
     <article
@@ -36,23 +38,15 @@ export const FeedRow = memo(function FeedRow({
     >
       <span className="absolute inset-y-2 left-0 w-px origin-top scale-y-0 bg-zinc-900 opacity-0 transition duration-300 ease-out group-hover:scale-y-100 group-hover:opacity-100 group-focus-within:scale-y-100 group-focus-within:opacity-100 dark:bg-zinc-100" />
       <div className="min-w-0 transition duration-300 ease-out group-hover:translate-x-1.5 group-focus-within:translate-x-1.5">
-        <h2 className="flex items-start gap-2 text-[15px] font-semibold leading-6 tracking-tight lg:text-[17px] lg:leading-7">
+        <h2 className="text-[15px] font-semibold leading-6 tracking-tight lg:text-[17px] lg:leading-7">
           <a
             href={item.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="feed-title min-w-0 text-zinc-900 outline-none transition-colors duration-200 hover:text-zinc-950 focus-visible:text-zinc-950 dark:text-zinc-50 dark:hover:text-white dark:focus-visible:text-white"
+            className="feed-title text-zinc-900 outline-none transition-colors duration-200 hover:text-zinc-950 focus-visible:text-zinc-950 dark:text-zinc-50 dark:hover:text-white dark:focus-visible:text-white"
           >
             <Highlight text={display} query={query} />
           </a>
-          <Link
-            href={`/ask?q=${encodeURIComponent(display)}`}
-            title="用这条标题去 AI 搜索"
-            onClick={(event) => event.stopPropagation()}
-            className="mt-0.5 shrink-0 text-[12px] font-medium leading-6 text-zinc-500 transition hover:text-zinc-800 dark:text-zinc-500 dark:hover:text-zinc-200"
-          >
-            AI搜搜
-          </Link>
         </h2>
         {original ? (
           <p className="mt-1 text-[13px] leading-6 text-zinc-500 dark:text-zinc-500">
@@ -74,6 +68,15 @@ export const FeedRow = memo(function FeedRow({
         ) : null}
       </div>
       <p className="flex flex-wrap items-center gap-x-2 text-[12px] leading-5 text-zinc-400 lg:justify-end lg:text-[13px] lg:leading-6 lg:text-zinc-500">
+        <Link
+          href={`/ask?q=${encodeURIComponent(display)}`}
+          title="用这条标题去 AI 搜索"
+          onClick={(event) => event.stopPropagation()}
+          className="font-medium text-zinc-500 transition hover:text-zinc-800 dark:hover:text-zinc-200"
+        >
+          AI搜搜
+        </Link>
+        <span className="text-zinc-300 dark:text-zinc-700">·</span>
         <MetaButton
           title="按这个来源筛选"
           onClick={() => onSource?.(item.source)}
@@ -123,6 +126,13 @@ function MetaButton({
       {children}
     </button>
   );
+}
+
+function sameLine(a: string, b: string) {
+  const left = a.toLowerCase().replace(/\s+/g, '');
+  const right = b.toLowerCase().replace(/\s+/g, '');
+  if (!left || !right) return false;
+  return left === right || left.startsWith(right) || right.startsWith(left);
 }
 
 function Highlight({ text, query }: { text: string; query: string }) {

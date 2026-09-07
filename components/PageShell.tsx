@@ -38,7 +38,7 @@ export function PageShell({
 }) {
   const router = useRouter();
   const categories = getNavCategories();
-  const selected = searchActive ? 'AI' : briefActive ? '首页' : '';
+  const selected = searchActive ? '搜索' : briefActive ? '首页' : '';
 
   const goCategory = (category: string) => {
     if (category === '首页') {

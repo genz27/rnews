@@ -21,8 +21,8 @@ export default async function Page({ searchParams }: PageProps) {
   const categories = getCatalogCategories();
   const fromUrl = categories.includes(params.c || '') ? (params.c as string) : '';
   const query = (params.q || '').trim();
-  const view = !fromUrl && !query ? '首页' : fromUrl || '推荐';
-  const category = view === '首页' ? '全部' : fromUrl || '推荐';
+  const view = fromUrl || '首页';
+  const category = view === '首页' ? '全部' : view;
 
   ensureBackgroundRefresh();
   const snapshot = await fetchAllFeeds();

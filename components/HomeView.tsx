@@ -65,7 +65,7 @@ export function HomeView({
   const writeUrl = useCallback((category: string, query: string, push: boolean) => {
     const params = new URLSearchParams();
     if (category && category !== '首页') params.set('c', category);
-    if (query && category !== '首页') params.set('q', query);
+    if (query) params.set('q', query);
     const next = params.toString() ? `/?${params.toString()}` : '/';
     const state = { c: category, q: query };
     if (push) window.history.pushState(state, '', next);
