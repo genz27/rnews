@@ -1,5 +1,6 @@
 'use client';
 
+import { HScroll } from '@/components/HScroll';
 import { MarkdownText } from '@/components/MarkdownText';
 import { fallbackFollowups, parseAskAnswer, type AskSource } from '@/lib/ask-format';
 import { useRouter } from 'next/navigation';
@@ -426,20 +427,20 @@ export function AskSearch({
             <div ref={bottomRef} />
           </div>
           <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 bg-gradient-to-t from-zinc-50 via-zinc-50/95 to-transparent px-4 pb-2 pt-8 dark:from-zinc-950 dark:via-zinc-950/95 lg:bottom-4 lg:px-8">
-            <div className="pointer-events-auto mx-auto w-full max-w-2xl">
+            <div className="pointer-events-auto mx-auto w-full min-w-0 max-w-2xl">
               {dockFollowups.length > 0 ? (
-                <div className="-mx-1 mb-2.5 flex gap-2 overflow-x-auto px-1 pb-0.5 scrollbar-hide">
+                <HScroll className="mb-2.5">
                   {dockFollowups.map((item) => (
                     <button
                       key={item}
                       type="button"
                       onClick={() => void ask(item, [])}
-                      className="shrink-0 rounded-full border border-zinc-200/80 bg-zinc-50/90 px-3 py-1.5 text-[13px] text-zinc-500 backdrop-blur-sm transition hover:border-zinc-400 hover:text-zinc-800 dark:border-white/[0.08] dark:bg-zinc-950/80 dark:hover:border-white/20 dark:hover:text-zinc-200"
+                      className="whitespace-nowrap rounded-full border border-zinc-200/80 bg-zinc-50/90 px-3 py-1.5 text-[13px] text-zinc-500 backdrop-blur-sm transition hover:border-zinc-400 hover:text-zinc-800 dark:border-white/[0.08] dark:bg-zinc-950/80 dark:hover:border-white/20 dark:hover:text-zinc-200"
                     >
                       {item}
                     </button>
                   ))}
-                </div>
+                </HScroll>
               ) : null}
               {composer}
             </div>
@@ -485,24 +486,32 @@ function TurnResult({
           >
             {parsed.sources.length} 个来源
           </button>
-          <div
-            className={
-              sourcesOpen
-                ? 'grid grid-cols-2 gap-2'
-                : '-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide'
-            }
-          >
-            {parsed.sources.map((source, sourceIndex) => (
-              <SourceCard
-                key={source.href}
-                id={`ask-source-${turn.id}-${sourceIndex}`}
-                source={source}
-                index={sourceIndex}
-                active={focusIndex === sourceIndex}
-                wide={sourcesOpen}
-              />
-            ))}
-          </div>
+          {sourcesOpen ? (
+            <div className="grid grid-cols-2 gap-2">
+              {parsed.sources.map((source, sourceIndex) => (
+                <SourceCard
+                  key={source.href}
+                  id={`ask-source-${turn.id}-${sourceIndex}`}
+                  source={source}
+                  index={sourceIndex}
+                  active={focusIndex === sourceIndex}
+                  wide
+                />
+              ))}
+            </div>
+          ) : (
+            <HScroll className="pb-1">
+              {parsed.sources.map((source, sourceIndex) => (
+                <SourceCard
+                  key={source.href}
+                  id={`ask-source-${turn.id}-${sourceIndex}`}
+                  source={source}
+                  index={sourceIndex}
+                  active={focusIndex === sourceIndex}
+                />
+              ))}
+            </HScroll>
+          )}
         </div>
       ) : null}
       {turn.error ? (

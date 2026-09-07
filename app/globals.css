@@ -46,6 +46,28 @@ body {
   display: none;
 }
 
+.h-scroll {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  gap: 0.5rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.h-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.h-scroll > * {
+  flex-shrink: 0;
+  touch-action: pan-x;
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;
