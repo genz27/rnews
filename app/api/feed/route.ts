@@ -9,7 +9,7 @@ import { attachRateLimitHeaders, rateLimit } from '@/lib/rate-limit';
 const RATE_LIMIT = 120;
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 15;
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {

@@ -587,25 +587,28 @@ export async function fetchAllFeeds(options?: { wait?: boolean }): Promise<Cache
   const wait = options?.wait ?? false;
   await ensureDiskLoaded();
 
-  if (wait) {
-    return stampTranslations(await startRefresh());
+  if (wait && !process.env.VERCEL) {
+    return await startRefresh();
   }
 
-  if (cache?.items.length) {
-    return stampTranslations(cache);
+  if (cache?.items.length) return cache;
+
+  // On Vercel the snapshot is baked into the deploy. Never block a visitor
+  // request on crawling 200+ upstream feeds — that trips FUNCTION_INVOCATION_TIMEOUT.
+  if (process.env.VERCEL) {
+    return cache ?? emptyCache();
   }
 
   startRefresh();
   const started = Date.now();
-  while (Date.now() - started < 12000) {
-    if (cache?.items.length) return stampTranslations(cache);
+  while (Date.now() - started < 4000) {
+    if (cache?.items.length) return cache;
     if (!inflight) break;
     await new Promise((resolve) => setTimeout(resolve, 150));
   }
 
-  if (cache?.items.length) return stampTranslations(cache);
-  if (inflight) return stampTranslations(await inflight);
-  return stampTranslations(cache ?? emptyCache());
+  if (cache?.items.length) return cache;
+  return cache ?? emptyCache();
 }
 
 export function filterItems(
