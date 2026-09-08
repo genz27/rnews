@@ -7,7 +7,6 @@ const TABS = [
   { id: '推荐', label: '推荐', href: '/?c=推荐' },
   { id: '搜索', label: 'AI', href: '/ask' },
   { id: '社区', label: '社区', href: '/?c=社区' },
-  { id: '资讯', label: '资讯', href: '/?c=资讯' },
 ] as const;
 
 export function BottomNav({
@@ -41,7 +40,7 @@ export function BottomNav({
       className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200/80 bg-zinc-50/95 backdrop-blur-xl dark:border-white/[0.06] dark:bg-zinc-950/95 lg:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <ul className="mx-auto grid max-w-lg grid-cols-5">
+      <ul className="mx-auto grid max-w-lg grid-cols-4">
         {TABS.map((tab) => {
           const current = active === tab.id;
           return (
@@ -79,16 +78,11 @@ function TabIcon({ name, active }: { name: string; active: boolean }) {
           <path d="M9 11h.01M15 11h.01M9.5 15h5" strokeLinecap="round" />
           <path d="M12 4v3" strokeLinecap="round" />
         </>
-      ) : name === '社区' ? (
+      ) : (
         <>
           <circle cx="8" cy="9" r="2.2" />
           <circle cx="16" cy="9" r="2.2" />
           <path d="M4.5 18c.6-2.4 2.4-3.6 4.5-3.6s3.9 1.2 4.5 3.6M12.8 18c.4-1.6 1.5-2.6 3.2-2.6 1.8 0 2.9 1 3.3 2.6" strokeLinecap="round" />
-        </>
-      ) : (
-        <>
-          <rect x="5" y="5" width="14" height="14" rx="2" />
-          <path d="M8 9h8M8 12h8M8 15h5" strokeLinecap="round" />
         </>
       )}
     </svg>
